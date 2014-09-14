@@ -6,6 +6,16 @@ use collections::Deque;
 static CHB_MIN_SIZE:uint = 32u;
 
 
+fn blit<T:Clone>(src: &[T], src_ofs: uint, dst: &mut [T], dst_ofs: uint, len: uint) {
+    if (src_ofs > src.len() - len) || (dst_ofs > dst.len() - len) {
+        fail!("blit: invalid argument!");
+    }
+    let sd = dst.mut_slice(dst_ofs, dst_ofs + len);
+    let ss = src.slice(src_ofs, src_ofs + len);
+    let _ = sd.clone_from_slice(ss);
+}
+
+
 struct ChbDataHolder{
     size: uint,
     data: Vec<u8>
@@ -25,7 +35,7 @@ struct ChbChain {
 fn chb_dh_new(size: uint) -> Box<ChbDataHolder> {
     let dh = box ChbDataHolder {
         size: size,
-        data: Vec::with_capacity(size)
+        data: Vec::from_elem(size, 0)
     };
     return dh;
 }
@@ -89,11 +99,13 @@ fn chb_create_node_head(chain: &mut ChbChain, size: uint) {
     chb_add_node_head(chain, node);
 }
 
+// XXX: maybe DEDUP append/prepend?
 fn chb_append_bytes(dst: &mut ChbChain, data: &[u8]) {
     let size = data.len();
-    // Check is READONLY
+    // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
     let should_create = match dst.head.back() {
         Some(nd) => {
+            // Check is READONLY
             chb_node_room(&**nd) < size
         }
         None => {
@@ -105,17 +117,43 @@ fn chb_append_bytes(dst: &mut ChbChain, data: &[u8]) {
     }
     // node could not be None here
     let node = dst.head.back_mut().unwrap();
-    node.dh.data.push_all(data);
+    // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
+    let end = node.end;
+    blit(data.as_slice(), 0,
+         node.dh.data.as_mut_slice(), end,
+         size);
     node.end += size;
     dst.length += size;
 }
 
 fn chb_prepend_bytes(dst: &mut ChbChain, data: &[u8]) {
     let size = data.len();
-
+    // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
+    let should_create = match dst.head.back() {
+        Some(nd) => {
+            // Check is READONLY
+            size > nd.start
+        }
+        None => {
+            true
+        }
+    };
+    if should_create {
+        chb_create_node_head(dst, size);
+    }
+    // node could not be None here
+    let node = dst.head.back_mut().unwrap();
+    // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
+    let start = node.start;
+    blit(data.as_slice(), 0,
+         node.dh.data.as_mut_slice(), start - size,
+         size);
+    node.start -= size;
+    dst.length += size;
 }
 
 fn main() {
     let mut chain = chb_new();
-    chb_append_bytes(&mut chain, "fwdhwdfhpudqbpudwfpldqfpludhqpflolololol".as_bytes());
+    chb_append_bytes(&mut chain, "abcdefghijklmnop".as_bytes());
+    chb_prepend_bytes(&mut chain, "xxx".as_bytes());
 }
