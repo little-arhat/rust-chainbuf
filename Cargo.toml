@@ -1,0 +1,9 @@
+[package]
+
+name = "rust-chainbuf"
+version = "0.0.1"
+authors = [ "Roma Sokolov <sokolov.r.v@gmail.com>" ]
+
+[[bin]]
+
+name = "test_chb"
