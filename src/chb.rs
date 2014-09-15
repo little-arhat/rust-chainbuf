@@ -76,6 +76,7 @@ fn chb_add_node_head(chain: &mut ChbChain, node: Box<ChbNode>) {
     chain.head.push_front(node);
 }
 
+// TODO: rename _back
 fn chb_create_node_tail(chain: &mut ChbChain, size: uint) {
     let nsize = if size < CHB_MIN_SIZE {
         size << 1
@@ -86,6 +87,7 @@ fn chb_create_node_tail(chain: &mut ChbChain, size: uint) {
     chb_add_node_tail(chain, node);
 }
 
+// TODO: rename _front
 fn chb_create_node_head(chain: &mut ChbChain, size: uint) {
     let nsize = if size < CHB_MIN_SIZE {
         size << 1
@@ -100,6 +102,7 @@ fn chb_create_node_head(chain: &mut ChbChain, size: uint) {
 }
 
 // XXX: maybe DEDUP append/prepend?
+// TODO: test: length, capacity, node size
 fn chb_append_bytes(dst: &mut ChbChain, data: &[u8]) {
     let size = data.len();
     // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
@@ -126,10 +129,11 @@ fn chb_append_bytes(dst: &mut ChbChain, data: &[u8]) {
     dst.length += size;
 }
 
+// TODO: test: length, capacity, node size
 fn chb_prepend_bytes(dst: &mut ChbChain, data: &[u8]) {
     let size = data.len();
     // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
-    let should_create = match dst.head.back() {
+    let should_create = match dst.head.front() {
         Some(nd) => {
             // Check is READONLY
             size > nd.start
@@ -142,7 +146,7 @@ fn chb_prepend_bytes(dst: &mut ChbChain, data: &[u8]) {
         chb_create_node_head(dst, size);
     }
     // node could not be None here
-    let node = dst.head.back_mut().unwrap();
+    let node = dst.head.front_mut().unwrap();
     // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
     let start = node.start;
     blit(data.as_slice(), 0,
