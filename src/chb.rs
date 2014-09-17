@@ -1,5 +1,7 @@
 // TODO: use Impls https://github.com/iron/iron/blob/master/src/iron.rs
 
+extern crate collections;
+
 use collections::dlist::DList;
 use collections::Deque;
 
@@ -93,10 +95,11 @@ impl ChbChain {
     }
 
     pub fn pullup(&mut self, size: uint) -> Option<&[u8]> {
-        if size == 0 || size > chb_size(chb) {
+        if size == 0 || size > self.size() {
             return None
         }
         // let node = match chb.head
+        None
     }
 
     // XXX: private
@@ -133,7 +136,7 @@ impl ChbChain {
             size
         };
         let mut node = ChbNode::new(ChbDataHolder::new(nsize)); // Box<ChbNode>
-        let r = node.room()
+        let r = node.room();
         node.start = r;
         node.end = r;
         self.add_node_head(node);
@@ -177,7 +180,7 @@ struct ChbDataHolder{
 }
 
 impl ChbDataHolder {
-    pub new(size: uint) -> Box<ChbDataHolder> {
+    pub fn new(size: uint) -> Box<ChbDataHolder> {
         let dh = box ChbDataHolder {
             size: size,
             data: Vec::from_elem(size, 0)
