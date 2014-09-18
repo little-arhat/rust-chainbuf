@@ -20,15 +20,15 @@ fn blit<T:Clone>(src: &[T], src_ofs: uint, dst: &mut [T], dst_ofs: uint, len: ui
 
 /// Chained buffer of bytes.
 /// Consists of linked list of nodes.
-pub struct ChbChain {
-    head: DList<Box<ChbNode>>,
+pub struct Chain {
+    head: DList<Box<Node>>,
     length: uint
 }
 
-impl ChbChain {
+impl Chain {
 
-    fn new() -> ChbChain {
-        return ChbChain{
+    fn new() -> Chain {
+        return Chain{
             head: DList::new(),
             length: 0
         }
@@ -105,13 +105,13 @@ impl ChbChain {
     // XXX: private
 
     // TODO: rename _back
-    fn add_node_tail(&mut self, node: Box<ChbNode>) {
+    fn add_node_tail(&mut self, node: Box<Node>) {
         self.length += node.size();
         self.head.push(node);
     }
 
     // TODO: rename _front
-    fn add_node_head(&mut self, node: Box<ChbNode>) {
+    fn add_node_head(&mut self, node: Box<Node>) {
         self.length += node.size();
         self.head.push_front(node);
     }
@@ -124,7 +124,7 @@ impl ChbChain {
         } else {
             size
         };
-        let node = ChbNode::new(ChbDataHolder::new(nsize)); // Box<ChbNode>
+        let node = Node::new(DataHolder::new(nsize)); // Box<Node>
         self.add_node_tail(node);
     }
 
@@ -135,7 +135,7 @@ impl ChbChain {
         } else {
             size
         };
-        let mut node = ChbNode::new(ChbDataHolder::new(nsize)); // Box<ChbNode>
+        let mut node = Node::new(DataHolder::new(nsize)); // Box<Node>
         let r = node.room();
         node.start = r;
         node.end = r;
@@ -144,16 +144,16 @@ impl ChbChain {
 }
 
 /// Node of chain buffer.
-/// Owned by ChbChain.
-struct ChbNode {
-    dh: Box<ChbDataHolder>, // можно заменить на RC
+/// Owned by Chain.
+struct Node {
+    dh: Box<DataHolder>, // можно заменить на RC
     start: uint,
     end: uint
 }
 
-impl ChbNode {
-    pub fn new(dh: Box<ChbDataHolder>) -> Box<ChbNode> {
-        let n = box ChbNode {
+impl Node {
+    pub fn new(dh: Box<DataHolder>) -> Box<Node> {
+        let n = box Node {
             dh: dh,
             start: 0,
             end: 0
@@ -174,14 +174,14 @@ impl ChbNode {
 /// Data holder
 /// TODO: can be shared among different chains
 /// TODO: implement other storages: shmem, mmap
-struct ChbDataHolder{
+struct DataHolder{
     size: uint,
     data: Vec<u8>
 }
 
-impl ChbDataHolder {
-    pub fn new(size: uint) -> Box<ChbDataHolder> {
-        let dh = box ChbDataHolder {
+impl DataHolder {
+    pub fn new(size: uint) -> Box<DataHolder> {
+        let dh = box DataHolder {
             size: size,
             data: Vec::from_elem(size, 0)
         };
