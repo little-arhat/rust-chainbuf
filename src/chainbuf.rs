@@ -188,7 +188,26 @@ impl DataHolder {
     }
 }
 
-// TODO: move to test
-// let mut chain = Chb::new();
-// chain.append_bytes("abcdefghijklmnop".as_bytes());
-// chain.prepend_bytes("xxx".as_bytes());
+#[cfg(test)]
+mod test {
+    use super::Chain;
+
+    #[test]
+    fn test_append_bytes_changes_length() {
+        let mut chain = Chain::new();
+        let s = "HelloWorld";
+        let ls = s.len();
+        chain.append_bytes(s.as_bytes());
+        assert_eq!(chain.size(), ls);
+    }
+
+    #[test]
+    fn test_prepend_bytes_changes_length() {
+        let mut chain = Chain::new();
+        let s = "HelloWorld";
+        let ls = s.len();
+        chain.prepend_bytes(s.as_bytes());
+        assert_eq!(chain.size(), ls);
+    }
+
+}
