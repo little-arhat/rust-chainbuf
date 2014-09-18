@@ -40,7 +40,7 @@ impl Chain {
 
     // XXX: maybe DEDUP append/prepend?
     // TODO: test: length, capacity, node size
-    pub fn append_bytes(mut self, data: &[u8]) {
+    pub fn append_bytes(&mut self, data: &[u8]) {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
