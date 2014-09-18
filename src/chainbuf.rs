@@ -13,7 +13,7 @@ fn blit<T:Clone>(src: &[T], src_ofs: uint, dst: &mut [T], dst_ofs: uint, len: ui
     if (src_ofs > src.len() - len) || (dst_ofs > dst.len() - len) {
         fail!("blit: invalid argument!");
     }
-    let sd = dst.mut_slice(dst_ofs, dst_ofs + len);
+    let sd = dst.slice_mut(dst_ofs, dst_ofs + len);
     let ss = src.slice(src_ofs, src_ofs + len);
     let _ = sd.clone_from_slice(ss);
 }
@@ -26,8 +26,7 @@ pub struct Chain {
 }
 
 impl Chain {
-
-    fn new() -> Chain {
+    pub fn new() -> Chain {
         return Chain{
             head: DList::new(),
             length: 0
@@ -35,7 +34,7 @@ impl Chain {
     }
 
     // TODO: rename len()?
-    fn size(&self) {
+    pub fn size(&self) -> uint {
         self.length
     }
 
@@ -152,7 +151,7 @@ struct Node {
 }
 
 impl Node {
-    pub fn new(dh: Box<DataHolder>) -> Box<Node> {
+    fn new(dh: Box<DataHolder>) -> Box<Node> {
         let n = box Node {
             dh: dh,
             start: 0,
@@ -162,11 +161,11 @@ impl Node {
         return n;
     }
 
-    pub fn size(&self) -> uint {
+    fn size(&self) -> uint {
         self.end - self.start
     }
 
-    pub fn room(&self) -> uint {
+    fn room(&self) -> uint {
         return self.dh.size - self.end;
     }
 }
@@ -180,7 +179,7 @@ struct DataHolder{
 }
 
 impl DataHolder {
-    pub fn new(size: uint) -> Box<DataHolder> {
+    fn new(size: uint) -> Box<DataHolder> {
         let dh = box DataHolder {
             size: size,
             data: Vec::from_elem(size, 0)
