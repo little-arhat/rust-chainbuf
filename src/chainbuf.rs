@@ -53,7 +53,9 @@ impl Chain {
             }
         };
         if should_create {
-            self.create_node_tail(size);
+            let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
+            let node = Node::new(DataHolder::new(nsize)); // Box<Node>
+            self.add_node_tail(node);
         }
         // node could not be None here
         let node = self.head.back_mut().unwrap();
@@ -80,7 +82,12 @@ impl Chain {
             }
         };
         if should_create {
-            self.create_node_head(size);
+            let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
+            let mut node = Node::new(DataHolder::new(nsize)); // Box<Node>
+            let r = node.room();
+            node.start = r;
+            node.end = r;
+            self.add_node_head(node);
         }
         // node could not be None here
         let node = self.head.front_mut().unwrap();
@@ -102,43 +109,14 @@ impl Chain {
     }
 
     // XXX: private
-
-    // TODO: rename _back
     fn add_node_tail(&mut self, node: Box<Node>) {
         self.length += node.size();
         self.head.push(node);
     }
 
-    // TODO: rename _front
     fn add_node_head(&mut self, node: Box<Node>) {
         self.length += node.size();
         self.head.push_front(node);
-    }
-
-    // TODO: rename _back
-    // TODO: remove?
-    fn create_node_tail(&mut self, size: uint) {
-        let nsize = if size < CHB_MIN_SIZE {
-            size << 1
-        } else {
-            size
-        };
-        let node = Node::new(DataHolder::new(nsize)); // Box<Node>
-        self.add_node_tail(node);
-    }
-
-    // TODO: rename _front
-    fn create_node_head(&mut self, size: uint) {
-        let nsize = if size < CHB_MIN_SIZE {
-            size << 1
-        } else {
-            size
-        };
-        let mut node = Node::new(DataHolder::new(nsize)); // Box<Node>
-        let r = node.room();
-        node.start = r;
-        node.end = r;
-        self.add_node_head(node);
     }
 }
 
