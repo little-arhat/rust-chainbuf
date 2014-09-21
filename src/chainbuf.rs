@@ -5,7 +5,8 @@ extern crate collections;
 use collections::dlist::DList;
 use collections::Deque;
 
-use std::cmp::min;
+use std::cmp;
+use std::mem;
 
 static CHB_MIN_SIZE:uint = 32u;
 
@@ -40,7 +41,6 @@ impl Chain {
     }
 
     // XXX: maybe DEDUP append/prepend?
-    // TODO: test: length, capacity, node size
     pub fn append_bytes(&mut self, data: &[u8]) {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
@@ -58,13 +58,12 @@ impl Chain {
             let node = Node::new(DataHolder::new(nsize)); // Box<Node>
             self.add_node_tail(node);
         }
-        // node could not be None here
+        // infailable: added node above
         let node = self.head.back_mut().unwrap();
         node.append_from(data, 0, size);
         self.length += size;
     }
 
-    // TODO: test: length, capacity, node size
     pub fn prepend_bytes(&mut self, data: &[u8]) {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
@@ -106,7 +105,7 @@ impl Chain {
         while msize > 0 {
             {
                 let node = self.head.front_mut().unwrap();
-                let csize = min(node.size(), size);
+                let csize = cmp::min(node.size(), size);
                 newn.append_from(node.data(), node.start, csize);
 
                 if node.size() > size {
@@ -126,9 +125,8 @@ impl Chain {
     }
 
     pub fn concat(&mut self, src: &mut Chain) {
-        use std::mem::replace;
         self.length += src.length;
-        let sh = replace(&mut src.head, DList::new());
+        let sh = mem::replace(&mut src.head, DList::new());
         self.head.append(sh);
         src.length = 0;
     }
