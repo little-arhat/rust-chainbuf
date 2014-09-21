@@ -59,12 +59,7 @@ impl Chain {
         }
         // node could not be None here
         let node = self.head.back_mut().unwrap();
-        // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
-        let end = node.end;
-        blit(data.as_slice(), 0,
-             node.dh.data.as_mut_slice(), end,
-             size);
-        node.end += size;
+        node.append_from(data, 0, size);
         self.length += size;
     }
 
@@ -91,12 +86,7 @@ impl Chain {
         }
         // node could not be None here
         let node = self.head.front_mut().unwrap();
-        // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
-        let start = node.start;
-        blit(data.as_slice(), 0,
-             node.dh.data.as_mut_slice(), start - size,
-             size);
-        node.start -= size;
+        node.prepend_from(data, 0, size);
         self.length += size;
     }
 
@@ -144,7 +134,36 @@ impl Node {
     }
 
     fn room(&self) -> uint {
-        return self.dh.size - self.end;
+        self.dh.size - self.end
+    }
+
+    fn data(&self) -> &[u8] {
+        self.dh.data.as_slice()
+    }
+
+    fn data_range(&self, start:uint, end:uint) -> &[u8] {
+        self.data().slice(start, end)
+    }
+
+    fn mut_data(&mut self) -> &mut [u8] {
+        self.dh.data.as_mut_slice()
+    }
+
+    fn append_from(&mut self, data: &[u8], offs: uint, size: uint) {
+        // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
+        let e = self.end;
+        blit(data, offs,
+             self.mut_data(), e,
+             size);
+        self.end += size
+    }
+
+    fn prepend_from(&mut self, data: &[u8], offs: uint, size: uint) {
+        let s = self.start;
+        blit(data, offs,
+             self.mut_data(), s - size,
+             size);
+        self.start -= size;
     }
 }
 
