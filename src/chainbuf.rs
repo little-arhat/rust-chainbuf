@@ -125,6 +125,14 @@ impl Chain {
         return self.pullup(size)
     }
 
+    pub fn concat(&mut self, src: &mut Chain) {
+        use std::mem::replace;
+        self.length += src.length;
+        let sh = replace(&mut src.head, DList::new());
+        self.head.append(sh);
+        src.length = 0;
+    }
+
     // XXX: private
     fn add_node_tail(&mut self, node: Box<Node>) {
         self.length += node.size();
@@ -281,4 +289,39 @@ mod test {
         assert!(ret.is_some());
         assert_eq!(ret.unwrap(), buf.as_slice());
     }
+
+    #[test]
+    fn test_concat_increase_dst_length() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        chain1.append_bytes("HelloWorld".as_bytes());
+        let l1 = chain1.len();
+        chain2.append_bytes("HelloWorld".as_bytes());
+        let l2 = chain2.len();
+        chain1.concat(&mut chain2);
+        assert_eq!(chain1.len(), l1+l2);
+    }
+
+    #[test]
+    fn test_concat_destroy_src() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        chain2.append_bytes("HelloWorld".as_bytes());
+        chain1.concat(&mut chain2);
+        assert_eq!(chain2.len(), 0);
+    }
+
+    #[test]
+    fn test_concat_appends_content() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        let b = "HelloWorld".as_bytes();
+        let bl = b.len();
+        chain2.append_bytes(b);
+        chain1.concat(&mut chain2);
+        let res = chain1.pullup(bl);
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), b);
+    }
+
 }
