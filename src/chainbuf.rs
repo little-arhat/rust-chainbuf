@@ -5,6 +5,8 @@ extern crate collections;
 use collections::dlist::DList;
 use collections::Deque;
 
+use std::cmp::min;
+
 static CHB_MIN_SIZE:uint = 32u;
 
 
@@ -94,8 +96,34 @@ impl Chain {
         if size == 0 || size > self.size() {
             return None
         }
-        // let node = match chb.head
-        None
+        // could not fail, because self.size() > 0 => has node
+        if self.head.front().unwrap().size() >= size {
+            let node = self.head.front().unwrap();
+            return Some(node.data_range(node.start, node.start + size));
+        }
+
+        let mut newn = Node::new(DataHolder::new(size));
+        let mut msize = size;
+        while msize > 0 {
+            {
+                let node = self.head.front_mut().unwrap();
+                let csize = min(node.size(), size);
+                newn.append_from(node.data(), node.start, csize);
+
+                if node.size() > size {
+                    node.start += size;
+                    self.length -= size;
+                    break
+                }
+            }
+            // infailable
+            let n = self.head.pop_front().unwrap();
+            msize -= n.size();
+            // XXX: free node?
+        }
+        self.add_node_head(newn);
+        // Now first node.size >= size, so we recurse
+        return self.pullup(size)
     }
 
     // XXX: private
@@ -188,6 +216,7 @@ impl DataHolder {
 #[cfg(test)]
 mod test {
     use super::Chain;
+    use std::rand::{task_rng, Rng};
 
     #[test]
     fn test_append_bytes_changes_length() {
@@ -201,10 +230,56 @@ mod test {
     #[test]
     fn test_prepend_bytes_changes_length() {
         let mut chain = Chain::new();
-        let s = "HelloWorld";
+        let s = "HelloWorld".as_bytes();
         let ls = s.len();
-        chain.prepend_bytes(s.as_bytes());
+        chain.prepend_bytes(s);
         assert_eq!(chain.size(), ls);
     }
 
+    #[test]
+    fn test_pullup_return_none_on_empty_chain() {
+        let mut chain = Chain::new();
+        assert_eq!(chain.pullup(1), None);
+    }
+
+    #[test]
+    fn test_pullup_return_what_has_been_appended() {
+        let mut chain = Chain::new();
+        let s = "HelloWorld".as_bytes();
+        let ls = s.len();
+        chain.append_bytes(s);
+        let res = chain.pullup(ls);
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), s);
+    }
+
+    #[test]
+    fn test_pullup_does_not_change_length() {
+        let mut chain = Chain::new();
+        let s = "HelloWorld".as_bytes();
+        let ls = s.len();
+        chain.append_bytes(s);
+        let olds = chain.size();
+        chain.pullup(ls / 2);
+        assert_eq!(chain.size(), olds);
+    }
+
+    #[test]
+    fn test_pullup_works_on_large_sequences() {
+        let mut chain = Chain::new();
+        let total = 2048u;
+        let mut t = total;
+        let one_seq = 128u;
+        let mut buf = Vec::new();
+        while t > 0 {
+            let s:String = task_rng().gen_ascii_chars().take(one_seq).collect();
+            let b = s.as_bytes();
+            buf = buf.append(b);
+            chain.append_bytes(b);
+            t -= one_seq;
+        }
+        let ret = chain.pullup(total);
+        assert!(ret.is_some());
+        assert_eq!(ret.unwrap(), buf.as_slice());
+    }
 }
