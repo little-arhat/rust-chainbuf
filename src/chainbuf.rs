@@ -35,8 +35,7 @@ impl Chain {
         }
     }
 
-    // TODO: rename len()?
-    pub fn size(&self) -> uint {
+    pub fn len(&self) -> uint {
         self.length
     }
 
@@ -93,7 +92,7 @@ impl Chain {
     }
 
     pub fn pullup(&mut self, size: uint) -> Option<&[u8]> {
-        if size == 0 || size > self.size() {
+        if size == 0 || size > self.len() {
             return None
         }
         // could not fail, because self.size() > 0 => has node
@@ -224,7 +223,7 @@ mod test {
         let s = "HelloWorld";
         let ls = s.len();
         chain.append_bytes(s.as_bytes());
-        assert_eq!(chain.size(), ls);
+        assert_eq!(chain.len(), ls);
     }
 
     #[test]
@@ -233,7 +232,7 @@ mod test {
         let s = "HelloWorld".as_bytes();
         let ls = s.len();
         chain.prepend_bytes(s);
-        assert_eq!(chain.size(), ls);
+        assert_eq!(chain.len(), ls);
     }
 
     #[test]
@@ -259,9 +258,9 @@ mod test {
         let s = "HelloWorld".as_bytes();
         let ls = s.len();
         chain.append_bytes(s);
-        let olds = chain.size();
+        let olds = chain.len();
         chain.pullup(ls / 2);
-        assert_eq!(chain.size(), olds);
+        assert_eq!(chain.len(), olds);
     }
 
     #[test]
