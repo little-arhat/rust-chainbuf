@@ -124,7 +124,17 @@ impl Chain {
         return self.pullup(size)
     }
 
-    pub fn concat(&mut self, src: &mut Chain) {
+    pub fn concat(&mut self, mut src: Chain) {
+        self.length += src.length;
+        self.head.append(src.head);
+        src.head = DList::new();
+        src.length = 0;
+    }
+
+    // TODO: maybe we do not need this method?
+    // TODO: `concat` better express move semantics
+    // XXX: to delete...
+    pub fn concat_ptr(&mut self, src: &mut Chain) {
         self.length += src.length;
         let sh = mem::replace(&mut src.head, DList::new());
         self.head.append(sh);
@@ -296,17 +306,8 @@ mod test {
         let l1 = chain1.len();
         chain2.append_bytes("HelloWorld".as_bytes());
         let l2 = chain2.len();
-        chain1.concat(&mut chain2);
+        chain1.concat(chain2);
         assert_eq!(chain1.len(), l1+l2);
-    }
-
-    #[test]
-    fn test_concat_destroy_src() {
-        let mut chain1 = Chain::new();
-        let mut chain2 = Chain::new();
-        chain2.append_bytes("HelloWorld".as_bytes());
-        chain1.concat(&mut chain2);
-        assert_eq!(chain2.len(), 0);
     }
 
     #[test]
@@ -316,10 +317,21 @@ mod test {
         let b = "HelloWorld".as_bytes();
         let bl = b.len();
         chain2.append_bytes(b);
-        chain1.concat(&mut chain2);
+        chain1.concat(chain2);
         let res = chain1.pullup(bl);
         assert!(res.is_some());
         assert_eq!(res.unwrap(), b);
+    }
+
+    // XXX: do not need to test it for `concat`, because it is done for us
+    // XXX: by type-system.
+    #[test]
+    fn test_concat_ptr_destroy_src() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        chain2.append_bytes("HelloWorld".as_bytes());
+        chain1.concat_ptr(&mut chain2);
+        assert_eq!(chain2.len(), 0);
     }
 
 }
