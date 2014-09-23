@@ -36,6 +36,12 @@ impl Chain {
         }
     }
 
+    pub fn from_foreign(src: Chain) -> Chain {
+        let mut ch = Chain::new();
+        ch.concat(src);
+        ch
+    }
+
     pub fn len(&self) -> uint {
         self.length
     }
@@ -129,6 +135,15 @@ impl Chain {
         self.head.append(src.head);
         // No need to cleanup `src`, because it has moved and cannot be used
     }
+
+    // XXX: chb_drop; `drop` is the sole method of built-in Drop trait,
+    // so use another name
+    pub fn reset(&mut self) {
+        self.head = DList::new();
+        self.length = 0;
+    }
+
+    // XXX: deprecated & experimental
 
     // TODO: maybe we do not need this method?
     // TODO: `concat` better express move semantics
@@ -251,9 +266,18 @@ mod test {
     }
 
     #[test]
+    fn test_from_foreign_moves_all_data() {
+        let mut orig = Chain::new();
+        orig.append_bytes("HelloWorld".as_bytes());
+        let sz = orig.len();
+        let new = Chain::from_foreign(orig);
+        assert_eq!(new.len(), sz);
+    }
+
+    #[test]
     fn test_pullup_return_none_on_empty_chain() {
         let mut chain = Chain::new();
-        assert_eq!(chain.pullup(1), None);
+        assert!(chain.pullup(1).is_none());
     }
 
     #[test]
@@ -318,8 +342,18 @@ mod test {
         chain2.append_bytes(b);
         chain1.concat(chain2);
         let res = chain1.pullup(bl);
+
         assert!(res.is_some());
         assert_eq!(res.unwrap(), b);
+    }
+
+    #[test]
+    fn test_reset_empties_chain() {
+        let mut chain = Chain::new();
+        chain.append_bytes("HelloWorld".as_bytes());
+        chain.reset();
+        assert!(chain.pullup(1).is_none());
+        assert_eq!(chain.len(), 0);
     }
 
     // XXX: do not need to test it for `concat`, because it is done for us
