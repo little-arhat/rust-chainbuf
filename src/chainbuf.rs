@@ -124,11 +124,10 @@ impl Chain {
         return self.pullup(size)
     }
 
-    pub fn concat(&mut self, mut src: Chain) {
+    pub fn concat(&mut self, src: Chain) {
         self.length += src.length;
         self.head.append(src.head);
-        src.head = DList::new();
-        src.length = 0;
+        // No need to cleanup `src`, because it has moved and cannot be used
     }
 
     // TODO: maybe we do not need this method?
