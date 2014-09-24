@@ -27,7 +27,7 @@ fn blit<T:Clone>(src: &[T], dst: &mut [T], dst_ofs: uint) {
 /// Chained buffer of bytes.
 /// Consists of linked list of nodes.
 pub struct Chain {
-    head: DList<Box<Node>>,
+    head: DList<Node>,
     length: uint
 }
 
@@ -181,12 +181,12 @@ impl Chain {
     }
 
     // XXX: private
-    fn add_node_tail(&mut self, node: Box<Node>) {
+    fn add_node_tail(&mut self, node: Node) {
         self.length += node.size();
         self.head.push(node);
     }
 
-    fn add_node_head(&mut self, node: Box<Node>) {
+    fn add_node_head(&mut self, node: Node) {
         self.length += node.size();
         self.head.push_front(node);
     }
@@ -201,8 +201,8 @@ struct Node {
 }
 
 impl Node {
-    fn new(dh: Rc<DataHolder>) -> Box<Node> {
-        let n = box Node {
+    fn new(dh: Rc<DataHolder>) -> Node {
+        let n = Node {
             dh: dh.clone(),
             start: 0,
             end: 0
