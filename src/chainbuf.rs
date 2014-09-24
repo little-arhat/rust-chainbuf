@@ -33,7 +33,7 @@ pub struct Chain {
 
 impl Chain {
     pub fn new() -> Chain {
-        return Chain{
+        Chain{
             head: DList::new(),
             length: 0
         }
@@ -209,12 +209,11 @@ struct Node {
 
 impl Node {
     fn new(dh: Rc<DataHolder>) -> Node {
-        let n = Node {
-            dh: dh.clone(),
+        Node {
+            dh: dh,
             start: 0,
             end: 0
-        };
-        return n;
+        }
     }
 
     fn size(&self) -> uint {
@@ -250,11 +249,10 @@ struct DataHolder{
 
 impl DataHolder {
     fn new(size: uint) -> Rc<DataHolder> {
-        let dh = Rc::new(DataHolder {
+        Rc::new(DataHolder {
             size: size,
             data: Vec::from_elem(size, 0)
-        });
-        return dh;
+        })
     }
 
     fn copy_data_from(&mut self, src: &[u8], dst_offs: uint) {
