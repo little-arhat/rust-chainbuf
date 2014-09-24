@@ -8,17 +8,20 @@ use collections::Deque;
 use std::cmp;
 use std::mem;
 
+use std::rc::{mod, Rc};
+
 static CHB_MIN_SIZE:uint = 32u;
 
 
 // TODO: move to utils
-fn blit<T:Clone>(src: &[T], src_ofs: uint, dst: &mut [T], dst_ofs: uint, len: uint) {
-    if (src_ofs > src.len() - len) || (dst_ofs > dst.len() - len) {
-        fail!("blit: invalid argument!");
-    }
+fn blit<T:Clone>(src: &[T], dst: &mut [T], dst_ofs: uint) {
+    let len = src.len();
     let sd = dst.slice_mut(dst_ofs, dst_ofs + len);
-    let ss = src.slice(src_ofs, src_ofs + len);
-    let _ = sd.clone_from_slice(ss);
+    if len > sd.len() {
+        fail!("blit: source larger than destination");
+    }
+
+    let _ = sd.clone_from_slice(src);
 }
 
 /// Chained buffer of bytes.
@@ -52,21 +55,29 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
             Some(nd) => {
-                // Check is READONLY
-                nd.room() < size
+                (nd.room() < size) || !rc::is_unique(&nd.dh)
             }
             None => {
                 true
             }
         };
+        // We either not the only owner of DH or don't have enough room
         if should_create {
             let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
-            let node = Node::new(DataHolder::new(nsize)); // Box<Node>
+            let node = Node::new(DataHolder::new(nsize));
             self.add_node_tail(node);
         }
         // infailable: added node above
         let node = self.head.back_mut().unwrap();
-        node.append_from(data, 0, size);
+        // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
+        // XXX: we need additional var and scope only to fight borrow checker
+        {
+            let node_end = node.end;
+            // we should be sole owner of data holder inside node here
+            let dh = rc::get_mut(&mut node.dh).unwrap();
+            dh.copy_data_from(data, node_end);
+        }
+        node.end += size;
         self.length += size;
     }
 
@@ -75,8 +86,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.front() {
             Some(nd) => {
-                // Check is READONLY
-                size > nd.start
+                (size > nd.start || !rc::is_unique(&nd.dh))
             }
             None => {
                 true
@@ -90,9 +100,14 @@ impl Chain {
             node.end = r;
             self.add_node_head(node);
         }
-        // node could not be None here
+        // See comments in `append_bytes`
         let node = self.head.front_mut().unwrap();
-        node.prepend_from(data, 0, size);
+        {
+            let node_start = node.start;
+            let dh = rc::get_mut(&mut node.dh).unwrap();
+            dh.copy_data_from(data, node_start - size);
+        }
+        node.start -= size;
         self.length += size;
     }
 
@@ -103,27 +118,37 @@ impl Chain {
         // could not fail, because self.size() > 0 => has node
         if self.head.front().unwrap().size() >= size {
             let node = self.head.front().unwrap();
-            return Some(node.data_range(node.start, node.start + size));
+            return Some(node.data(size));
         }
 
         let mut newn = Node::new(DataHolder::new(size));
-        let mut msize = size;
-        while msize > 0 {
-            {
-                let node = self.head.front_mut().unwrap();
-                let csize = cmp::min(node.size(), size);
-                newn.append_from(node.data(), node.start, csize);
+        // XXX: we need this scope to be able to move newn inside our list
+        {
+            // we just created new data holder, so we have unique ownership
+            let mut msize = size;
+            while msize > 0 {
+                {
+                    let node = self.head.front_mut().unwrap();
+                    let csize = cmp::min(node.size(), size);
+                    // XXX: we need this scope only to beat borrow checker
+                    {
+                        let node_end = newn.end;
+                        let dh = rc::get_mut(&mut newn.dh).unwrap();
+                        dh.copy_data_from(node.data(csize), node_end);
+                    }
+                    newn.end += csize;
 
-                if node.size() > size {
-                    node.start += size;
-                    self.length -= size;
-                    break
+                    if node.size() > size {
+                        node.start += size;
+                        self.length -= size;
+                        break
+                    }
                 }
+                // infailable
+                let n = self.head.pop_front().unwrap();
+                msize -= n.size();
+                // XXX: free node?
             }
-            // infailable
-            let n = self.head.pop_front().unwrap();
-            msize -= n.size();
-            // XXX: free node?
         }
         self.add_node_head(newn);
         // Now first node.size >= size, so we recurse
@@ -170,15 +195,15 @@ impl Chain {
 /// Node of chain buffer.
 /// Owned by Chain.
 struct Node {
-    dh: Box<DataHolder>, // можно заменить на RC
+    dh: Rc<DataHolder>, // можно заменить на RC
     start: uint,
     end: uint
 }
 
 impl Node {
-    fn new(dh: Box<DataHolder>) -> Box<Node> {
+    fn new(dh: Rc<DataHolder>) -> Box<Node> {
         let n = box Node {
-            dh: dh,
+            dh: dh.clone(),
             start: 0,
             end: 0
         };
@@ -194,37 +219,13 @@ impl Node {
         self.dh.size - self.end
     }
 
-    fn data(&self) -> &[u8] {
-        self.dh.data.as_slice()
+    fn data(&self, size:uint) -> &[u8] {
+        self.dh.data.slice(self.start, self.start + size)
     }
 
-    fn data_range(&self, start:uint, end:uint) -> &[u8] {
-        self.data().slice(start, end)
-    }
-
-    fn mut_data(&mut self) -> &mut [u8] {
-        self.dh.data.as_mut_slice()
-    }
-
-    fn append_from(&mut self, data: &[u8], offs: uint, size: uint) {
-        // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
-        let e = self.end;
-        blit(data, offs,
-             self.mut_data(), e,
-             size);
-        self.end += size
-    }
-
-    fn prepend_from(&mut self, data: &[u8], offs: uint, size: uint) {
-        let s = self.start;
-        blit(data, offs,
-             self.mut_data(), s - size,
-             size);
-        self.start -= size;
-    }
 }
 
-/// Data holder
+/// Refcounted data holder
 /// TODO: can be shared among different chains
 /// TODO: implement other storages: shmem, mmap
 struct DataHolder{
@@ -233,12 +234,17 @@ struct DataHolder{
 }
 
 impl DataHolder {
-    fn new(size: uint) -> Box<DataHolder> {
-        let dh = box DataHolder {
+    fn new(size: uint) -> Rc<DataHolder> {
+        let dh = Rc::new(DataHolder {
             size: size,
             data: Vec::from_elem(size, 0)
-        };
+        });
         return dh;
+    }
+
+    fn copy_data_from(&mut self, src: &[u8], dst_offs: uint) {
+        blit(src,
+             self.data.as_mut_slice(), dst_offs);
     }
 }
 
