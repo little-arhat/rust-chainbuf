@@ -169,6 +169,12 @@ impl Chain {
         self.length = 0;
     }
 
+    pub fn append(&mut self, src: &Chain) {
+        for node in src.head.iter() {
+            self.add_node_tail(node.clone());
+        }
+    }
+
     // XXX: deprecated & experimental
 
     // TODO: maybe we do not need this method?
@@ -223,6 +229,15 @@ impl Node {
         self.dh.data.slice(self.start, self.start + size)
     }
 
+}
+
+impl Clone for Node {
+    fn clone(&self) -> Node {
+        let mut newn = Node::new(self.dh.clone());
+        newn.start = self.start;
+        newn.end = self.end;
+        newn
+    }
 }
 
 /// Refcounted data holder
@@ -363,6 +378,25 @@ mod test {
         chain.reset();
         assert!(chain.pullup(1).is_none());
         assert_eq!(chain.len(), 0);
+    }
+
+    #[test]
+    fn test_append_copies_data() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        let s = "HelloWorld";
+        let b = s.as_bytes();
+        let lb = b.len();
+        let ss = String::from_str(s).append(s);
+        chain1.append_bytes(b);
+        chain2.append_bytes(b);
+        chain1.append(&mut chain2);
+        {
+            let res = chain1.pullup(2 * lb);
+            assert!(res.is_some());
+            assert_eq!(res.unwrap(), ss.as_bytes());
+        }
+        assert_eq!(chain1.len(), 2 * lb);
     }
 
     // XXX: do not need to test it for `concat`, because it is done for us
