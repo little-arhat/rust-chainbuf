@@ -124,30 +124,31 @@ impl Chain {
         let mut newn = Node::new(DataHolder::new(size));
         // XXX: we need this scope to be able to move newn inside our list
         {
-            // we just created new data holder, so we have unique ownership
             let mut msize = size;
             while msize > 0 {
                 {
+
                     let node = self.head.front_mut().unwrap();
-                    let csize = cmp::min(node.size(), size);
+                    let csize = cmp::min(node.size(), msize);
                     // XXX: we need this scope only to beat borrow checker
                     {
                         let node_end = newn.end;
+                        // we just created new data holder, so we have unique ownership
                         let dh = rc::get_mut(&mut newn.dh).unwrap();
                         dh.copy_data_from(node.data(csize), node_end);
                     }
                     newn.end += csize;
 
-                    if node.size() > size {
-                        node.start += size;
-                        self.length -= size;
+                    if node.size() > msize {
+                        node.start += msize;
+                        self.length -= msize;
                         break
                     }
                 }
                 // infailable
                 let n = self.head.pop_front().unwrap();
+                self.length -= n.size();
                 msize -= n.size();
-                // XXX: free node?
             }
         }
         self.add_node_head(newn);
@@ -321,9 +322,12 @@ mod test {
             chain.append_bytes(b);
             t -= one_seq;
         }
-        let ret = chain.pullup(total);
-        assert!(ret.is_some());
-        assert_eq!(ret.unwrap(), buf.as_slice());
+        {
+            let ret = chain.pullup(total);
+            assert!(ret.is_some());
+            assert_eq!(ret.unwrap(), buf.as_slice());
+        }
+        assert_eq!(chain.len(), total);
     }
 
     #[test]
