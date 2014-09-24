@@ -195,7 +195,7 @@ impl Chain {
 /// Node of chain buffer.
 /// Owned by Chain.
 struct Node {
-    dh: Rc<DataHolder>, // можно заменить на RC
+    dh: Rc<DataHolder>,
     start: uint,
     end: uint
 }
@@ -207,7 +207,6 @@ impl Node {
             start: 0,
             end: 0
         };
-        // TODO: ref dh ? auto, when using RC
         return n;
     }
 
