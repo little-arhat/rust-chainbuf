@@ -1,5 +1,3 @@
-// TODO: use Impls https://github.com/iron/iron/blob/master/src/iron.rs
-
 extern crate collections;
 
 use collections::dlist::DList;
