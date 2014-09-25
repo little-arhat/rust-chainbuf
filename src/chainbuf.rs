@@ -329,7 +329,7 @@ mod test {
         while t > 0 {
             let s:String = task_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
-            buf = buf.append(b);
+            buf.extend(b.iter().map(|x| x.clone()));
             chain.append_bytes(b);
             t -= one_seq;
         }
@@ -383,7 +383,8 @@ mod test {
         let s = "HelloWorld";
         let b = s.as_bytes();
         let lb = b.len();
-        let ss = String::from_str(s).append(s);
+        let mut ss = String::from_str(s);
+        ss.push_str(s);
         chain1.append_bytes(b);
         chain2.append_bytes(b);
         chain1.append(&mut chain2);
