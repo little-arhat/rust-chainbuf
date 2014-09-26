@@ -7,3 +7,16 @@ authors = [ "Roma Sokolov <sokolov.r.v@gmail.com>" ]
 [lib]
 name = "chainbuf"
 path = "src/lib.rs"
+
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3
+debug = false
+
+[profile.test]
+opt-level = 0
+debug = true
