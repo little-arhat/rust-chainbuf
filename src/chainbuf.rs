@@ -22,11 +22,35 @@ fn blit<T:Clone>(src: &[T], dst: &mut [T], dst_ofs: uint) {
     let _ = sd.clone_from_slice(src);
 }
 
+/// Move at most n items from the front of src deque to thes back of
+/// dst deque.
+/// XXX: if we had access to DList impl, we could do this more effective
+fn move_n<TT, T: Deque<TT>>(src: &mut T, dst: &mut T, n: uint) {
+    let mut nc = n;
+    while nc > 0 {
+        match src.pop_front() {
+            Some(el) => {
+                dst.push(el);
+                nc -= 1;
+            }
+            None => {
+                break;
+            }
+        }
+    }
+}
+
 /// Chained buffer of bytes.
 /// Consists of linked list of nodes.
 pub struct Chain {
     head: DList<Node>,
     length: uint
+}
+
+struct NodeAtPosInfo<'a> {
+    node: &'a mut Node, // link to node
+    pos: uint, // position of node in chain
+    offset: uint // offset inside node
 }
 
 impl Chain {
@@ -118,14 +142,12 @@ impl Chain {
             let node = self.head.front().unwrap();
             return Some(node.data(size));
         }
-
         let mut newn = Node::new(DataHolder::new(size));
         // XXX: we need this scope to be able to move newn inside our list
         {
             let mut msize = size;
             while msize > 0 {
                 {
-
                     let node = self.head.front_mut().unwrap();
                     let csize = cmp::min(node.size(), msize);
                     // XXX: we need this scope only to beat borrow checker
@@ -173,12 +195,45 @@ impl Chain {
         }
     }
 
-    // XXX: deprecated & experimental
+    pub fn move_from(&mut self, src: &mut Chain, size: uint) -> uint {
+        if size == 0 {
+            return 0;
+        }
+        if size >= src.len() {
+            let sz = src.len();
+            self.move_all_from(src);
+            return sz;
+        }
 
-    // TODO: maybe we do not need this method?
-    // TODO: `concat` better express move semantics
-    // XXX: to delete...
-    pub fn concat_ptr(&mut self, src: &mut Chain) {
+        let mut move_nodes;
+        let mut newn = None;
+        // We've done checks, so we cannot have None here
+        {
+            let node_info = src.node_at_pos(size).unwrap();
+            if node_info.offset != 0 {
+                // We requesting data in the middle of node, should split it then
+                let mut nn = node_info.node.clone();
+                nn.start += node_info.offset;
+                node_info.node.end = nn.start;
+                newn = Some(nn);
+                move_nodes = node_info.pos + 1;
+            } else {
+                // Requested data right on the border of nodes, can move all nodes
+                // before this one
+                move_nodes = node_info.pos;
+            }
+        }
+        move_n(&mut src.head, &mut self.head, move_nodes);
+        if newn.is_some() {
+            src.head.push_front(newn.unwrap());
+        }
+
+        self.length += size;
+        src.length -= size;
+
+        return size; }
+
+    pub fn move_all_from(&mut self, src: &mut Chain) {
         self.length += src.length;
         let sh = mem::replace(&mut src.head, DList::new());
         self.head.append(sh);
@@ -186,6 +241,40 @@ impl Chain {
     }
 
     // XXX: private
+
+    fn node_at_pos<'a>(&'a mut self, pos: uint) -> Option<NodeAtPosInfo<'a>> {
+        if (pos << 1) > self.len() {
+            // Find from tail
+            let mut toff = self.len(); // tail offset
+            for (i, n) in self.head.iter_mut().rev().enumerate() {
+                let nsize = n.size();
+                if (toff - pos) <= nsize {
+                    return Some(NodeAtPosInfo {
+                        node: n,
+                        pos: i,
+                        offset: (nsize - (toff - pos))
+                    })
+                }
+                toff -= nsize;
+            }
+        } else {
+            // Find from begining
+            let mut hoff = 0; // head offset
+            for (i, n) in self.head.iter_mut().enumerate() {
+                let nsize = n.size();
+                if (pos - hoff) < nsize {
+                    return Some(NodeAtPosInfo {
+                        node: n,
+                        pos: i,
+                        offset: pos - hoff
+                    })
+                }
+                hoff += nsize;
+            }
+        }
+        None
+    }
+
     fn add_node_tail(&mut self, node: Node) {
         self.length += node.size();
         self.head.push(node);
@@ -262,6 +351,7 @@ impl DataHolder {
 #[cfg(test)]
 mod test {
     use super::Chain;
+    use super::CHB_MIN_SIZE;
     use std::rand::{task_rng, Rng};
 
     #[test]
@@ -396,15 +486,44 @@ mod test {
         assert_eq!(chain1.len(), 2 * lb);
     }
 
-    // XXX: do not need to test it for `concat`, because it is done for us
-    // XXX: by type-system.
     #[test]
-    fn test_concat_ptr_destroy_src() {
+    fn test_move_from_moves_data() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
-        chain2.append_bytes("HelloWorld".as_bytes());
-        chain1.concat_ptr(&mut chain2);
-        assert_eq!(chain2.len(), 0);
+        let s = "HelloWorld";
+        let b = s.as_bytes();
+        let lb = b.len();
+        let hlb = lb / 2;
+        chain1.append_bytes(b);
+        chain2.append_bytes(b);
+        chain1.move_from(&mut chain2, hlb);
+        assert_eq!(chain1.len(), lb + hlb);
+        assert_eq!(chain2.len(), hlb);
+        {
+            let mut ss = String::from_str(s);
+            ss.push_str(s.slice(0, hlb));
+            let r = b.slice_from(hlb);
+            let r1 = chain1.pullup(lb + hlb);
+            let r2 = chain2.pullup(hlb);
+            assert!(r1.is_some());
+            assert!(r2.is_some());
+            assert_eq!(r1.unwrap(), ss.as_bytes());
+            assert_eq!(r2.unwrap(), r);
+        }
+    }
+
+    #[test]
+    fn test_move_from_move_on_node_edge() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        let s:String = task_rng().gen_ascii_chars().take(CHB_MIN_SIZE).collect();
+        let sb = s.as_bytes();
+        chain2.append_bytes(sb);
+        chain2.append_bytes(sb);
+        chain2.append_bytes(sb);
+        chain2.append_bytes(sb);
+        chain1.move_from(&mut chain2, CHB_MIN_SIZE * 2);
+        assert_eq!(chain1.len(), chain2.len());
     }
 
 }
