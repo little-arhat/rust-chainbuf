@@ -644,4 +644,20 @@ mod test {
         assert_eq!(chain1.len(), chain2.len());
     }
 
+    #[test]
+    fn test_move_from_returns_number_of_bytes_moved() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        chain2.append_bytes("helloworld".as_bytes());
+        let orig_size = chain2.len();
+        let moved = chain1.move_from(&mut chain2, 3);
+        let new_size = chain2.len();
+        assert_eq!(moved, 3);
+        assert_eq!(orig_size - moved, chain2.len());
+        let moved_some_more = chain1.move_from(&mut chain2, orig_size);
+        assert_eq!(moved_some_more, new_size);
+        assert_eq!(chain2.len(), 0);
+    }
+
+
 }
