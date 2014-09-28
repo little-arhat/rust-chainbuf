@@ -24,7 +24,7 @@ fn blit<T:Clone>(src: &[T], dst: &mut [T], dst_ofs: uint) {
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
-/// XXX: if we had access to DList impl, we could do this more effective
+// XXX: if we had access to DList impl, we could do this more effective
 fn move_n<TT, T: Deque<TT>>(src: &mut T, dst: &mut T, n: uint) {
     let mut nc = n;
     while nc > 0 {
@@ -41,7 +41,18 @@ fn move_n<TT, T: Deque<TT>>(src: &mut T, dst: &mut T, n: uint) {
 }
 
 /// Chained buffer of bytes.
-/// Consists of linked list of nodes.
+/// # Examples:
+/// ```
+/// use chainbuf::Chain;
+/// let mut chain = Chain::new();
+/// chain.append_bytes("helloworld".as_bytes());
+/// let some_bytes = chain.pullup(2);
+/// ```
+/// # Details of implementation
+/// Chainbuf consists of linked list of nodes, with `start` and `end`
+/// offsets and a reference counted pointer to DataHolder. DataHolders can be
+/// shared across different chains, so for mutation new nodes and data holders
+/// are created (as in Copy-On-Write).
 pub struct Chain {
     head: DList<Node>,
     length: uint
@@ -54,6 +65,14 @@ struct NodeAtPosInfo<'a> {
 }
 
 impl Chain {
+    /// Creates new, empty chainbuf.
+    /// Chainbuf will not allocate any nodes until something are
+    /// pushed onto it.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// ```
     pub fn new() -> Chain {
         Chain{
             head: DList::new(),
@@ -61,17 +80,37 @@ impl Chain {
         }
     }
 
+    /// Constructs new chainbuf from another chainbuf, destroying it.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain1 = Chain::new();
+    /// chain1.append_bytes("helloworld".as_bytes());
+    /// let mut chain2 = Chain::from_foreign(chain1);
+    /// println!("{}", chain2.len()); // should print 10
+    /// // println!("{}", chain1.len()); // should produce error `use of moved value`
+    /// ```
     pub fn from_foreign(src: Chain) -> Chain {
         let mut ch = Chain::new();
         ch.concat(src);
         ch
     }
 
+    /// Returns number of bytes stored in chainbuf.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// println!("{}", chain.len()); // should print 10
+    /// ```
     pub fn len(&self) -> uint {
         self.length
     }
 
-    // XXX: maybe DEDUP append/prepend?
+    /// Copies bytes from a slice, and appends them to the end of chain,
+    /// creating new node, if data holder in last node does not have enough
+    /// room for data or shared across several chains.
     pub fn append_bytes(&mut self, data: &[u8]) {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
@@ -103,6 +142,9 @@ impl Chain {
         self.length += size;
     }
 
+    /// Copies bytes from a slice, and prepends them to the begining of chain,
+    /// creating new node, if data holder in last node does not have enough
+    /// room for data or shared across several chains.
     pub fn prepend_bytes(&mut self, data: &[u8]) {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
@@ -133,6 +175,20 @@ impl Chain {
         self.length += size;
     }
 
+    /// Returns contiguous slice of data of requested size or None,
+    /// if chain does not have enough data.
+    /// If data of requested size span multiple nodes, new node, containing
+    /// all data will be created instead.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes()); // new node created
+    /// chain.append_bytes("helloworldhelloworld".as_bytes()); // new node created
+    /// assert_eq!(chain.pullup(100), None);
+    /// assert_eq!(chain.pullup(2).unwrap(), "he".as_bytes()); // does not create new node
+    /// assert_eq!(chain.pullup(25).unwrap(), "helloworldhelloworldhello".as_bytes()); // create new node
+    /// ```
     pub fn pullup(&mut self, size: uint) -> Option<&[u8]> {
         if size == 0 || size > self.len() {
             return None
@@ -176,25 +232,73 @@ impl Chain {
         return self.pullup(size)
     }
 
+    /// Consumes another chain and moves all data from it to itself.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain1 = Chain::new();
+    /// let mut chain2 = Chain::new();
+    /// chain1.append_bytes("hello".as_bytes());
+    /// chain2.append_bytes("world".as_bytes());
+    /// chain1.concat(chain2);
+    /// assert_eq!(chain1.pullup(10).unwrap(), "helloworld".as_bytes());
+    /// ```
     pub fn concat(&mut self, src: Chain) {
         self.length += src.length;
         self.head.append(src.head);
         // No need to cleanup `src`, because it has moved and cannot be used
     }
 
-    // XXX: chb_drop; `drop` is the sole method of built-in Drop trait,
-    // so use another name
+    /// Discards all data in chain, deletes all nodes and set length to 0.
+    /// # Example:
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// assert_eq!(chain.len(), 10);
+    /// chain.reset();
+    /// assert_eq!(chain.len(), 0);
+    /// ```
     pub fn reset(&mut self) {
+        // XXX: chb_drop; `drop` is the sole method of built-in Drop trait,
+        // so use another name
         self.head = DList::new();
         self.length = 0;
     }
 
+    /// Appends data from another chain to itself.
+    /// # Note
+    /// This method creates new nodes with same offsets and pointer as in
+    /// src node. No data copy happens.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain1 = Chain::new();
+    /// let mut chain2 = Chain::new();
+    /// chain2.append_bytes("helloworld".as_bytes());
+    /// chain1.append(&chain2);
+    /// assert_eq!(chain1.len(), chain2.len());
+    /// ```
     pub fn append(&mut self, src: &Chain) {
+        // XXX: chb_copy
         for node in src.head.iter() {
             self.add_node_tail(node.clone());
         }
     }
 
+    /// Moves at most size bytes from another chain and returns number of
+    /// bytes moved.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain1 = Chain::new();
+    /// let mut chain2 = Chain::new();
+    /// chain1.append_bytes("helloworld".as_bytes());
+    /// let moved = chain2.move_from(&mut chain1, 3);
+    /// assert_eq!(moved, 3);
+    /// let moved_more = chain2.move_from(&mut chain1, 10);
+    /// assert_eq!(moved_more, 7);
+    /// ```
     pub fn move_from(&mut self, src: &mut Chain, size: uint) -> uint {
         if size == 0 {
             return 0;
@@ -231,8 +335,22 @@ impl Chain {
         self.length += size;
         src.length -= size;
 
-        return size; }
+        return size;
+    }
 
+    /// Moves all data from sourche chain to itself.
+    ///
+    /// This operation should compute in O(1).
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain1 = Chain::new();
+    /// let mut chain2 = Chain::new();
+    /// chain1.append_bytes("helloworld".as_bytes());
+    /// chain2.move_all_from(&mut chain1);
+    /// assert_eq!(chain1.len(), 0);
+    /// assert_eq!(chain2.len(), 10);
+    /// ```
     pub fn move_all_from(&mut self, src: &mut Chain) {
         self.length += src.length;
         let sh = mem::replace(&mut src.head, DList::new());
