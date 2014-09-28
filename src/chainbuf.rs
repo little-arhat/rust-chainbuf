@@ -358,6 +358,39 @@ impl Chain {
         src.length = 0;
     }
 
+    /// Returns mutable slice of requested size that points to empty data in
+    /// DataHolder. If requested size greater than available room in
+    /// existing node, new node will be created.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// let buf = chain.reserve(10);
+    /// assert_eq!(buf.len(), 10);
+    /// ```
+    pub fn reserve(&mut self, size: uint) -> &mut [u8] {
+        // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
+        let should_create = match self.head.back() {
+            Some(nd) => {
+                (nd.room() < size) || !rc::is_unique(&nd.dh)
+            }
+            None => {
+                true
+            }
+        };
+        // We either not the only owner of DH or don't have enough room
+        if should_create {
+            let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
+            let node = Node::new(DataHolder::new(nsize));
+            self.add_node_tail(node);
+        }
+        // infailable: have node, or have added it above
+        let node = self.head.back_mut().unwrap();
+        let dh = rc::get_mut(&mut node.dh).unwrap();
+        dh.data_mut(node.end, size)
+    }
+
+
     // XXX: private
 
     fn node_at_pos<'a>(&'a mut self, pos: uint) -> Option<NodeAtPosInfo<'a>> {
@@ -463,6 +496,10 @@ impl DataHolder {
     fn copy_data_from(&mut self, src: &[u8], dst_offs: uint) {
         blit(src,
              self.data.as_mut_slice(), dst_offs);
+    }
+
+    fn data_mut(&mut self, offset: uint, size: uint) -> &mut [u8] {
+        self.data.as_mut_slice().slice_mut(offset, offset + size)
     }
 }
 
@@ -657,6 +694,22 @@ mod test {
         let moved_some_more = chain1.move_from(&mut chain2, orig_size);
         assert_eq!(moved_some_more, new_size);
         assert_eq!(chain2.len(), 0);
+    }
+
+    #[test]
+    fn test_reserve_returns_buffer_of_requested_size() {
+        let mut chain = Chain::new();
+        let buf = chain.reserve(10);
+        assert_eq!(buf.len(), 10);
+    }
+
+    #[test]
+    fn test_reserve_returns_free_buffer() {
+        let mut chain = Chain::new();
+        chain.append_bytes("helloworld".as_bytes());
+        let buf = chain.reserve(10);
+        let pat = Vec::from_elem(10, 0u8);
+        assert_eq!(buf.as_slice(), pat.as_slice());
     }
 
 
