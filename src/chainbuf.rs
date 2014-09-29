@@ -358,9 +358,12 @@ impl Chain {
         src.length = 0;
     }
 
-    /// Returns mutable slice of requested size that points to empty data in
+    /// Returns mutable slice of requested size that points to empty area in
     /// DataHolder. If requested size greater than available room in
     /// existing node, new node will be created.
+    /// # Usage
+    /// After writing data to buffer .written(size) should be calling
+    /// to move offsets.
     /// # Example
     /// ```
     /// use chainbuf::Chain;
@@ -388,6 +391,30 @@ impl Chain {
         let node = self.head.back_mut().unwrap();
         let dh = rc::get_mut(&mut node.dh).unwrap();
         dh.data_mut(node.end, size)
+    }
+
+    /// Changes offsets in chain to specified number of bytes.
+    /// Should be used in conjuction with .reserve();
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// {
+    ///     let buf = chain.reserve(2);
+    ///     buf[0] = 'h' as u8;
+    ///     buf[1] = 'i' as u8;
+    /// }
+    /// chain.written(2);
+    /// assert_eq!(chain.len(), 2);
+    /// ```
+    pub fn written(&mut self, size: uint) {
+        // XXX: think, now we can enforce correct usage of reserve/written
+        // XXX: with type-system?
+        // XXX: for now, it's responsibility of user to use this API correctly
+        // TODO: mark as unsafe API? (it's only (sic!) logically unsafe, though)
+        let node = self.head.back_mut().unwrap();
+        node.end += size;
+        self.length += size;
     }
 
 
@@ -710,6 +737,22 @@ mod test {
         let buf = chain.reserve(10);
         let pat = Vec::from_elem(10, 0u8);
         assert_eq!(buf.as_slice(), pat.as_slice());
+    }
+
+    #[test]
+    fn test_reserve_and_written_modifies_chain() {
+        let mut chain = Chain::new();
+        let s = "helloworld".as_bytes();
+        let sl = s.len();
+        {
+            let buf = chain.reserve(10);
+            for (i, c) in s.iter().enumerate() {
+                buf[i] = *c as u8;
+            }
+        }
+        chain.written(sl);
+        assert_eq!(chain.len(), sl);
+        assert_eq!(chain.pullup(sl).unwrap(), s);
     }
 
 
