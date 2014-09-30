@@ -232,6 +232,20 @@ impl Chain {
         return self.pullup(size)
     }
 
+    /// Shortcut for chain.pullup(chain.len()).
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// let buf = chain.pullup_all();
+    /// assert_eq!(buf.unwrap().len(), 10);
+    /// ```
+    pub fn pullup_all(&mut self) -> Option<&[u8]> {
+        let l = self.len();
+        self.pullup(l)
+    }
+
     /// Consumes another chain and moves all data from it to itself.
     /// # Example
     /// ```
@@ -611,6 +625,16 @@ mod test {
             assert_eq!(ret.unwrap(), buf.as_slice());
         }
         assert_eq!(chain.len(), total);
+    }
+
+    #[test]
+    fn test_pullup_all_returns_all_data() {
+        let mut chain = Chain::new();
+        let s = "helloworld".as_bytes();
+        chain.append_bytes(s);
+        let res = chain.pullup_all();
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), s);
     }
 
     #[test]
