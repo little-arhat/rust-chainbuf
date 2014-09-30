@@ -564,13 +564,13 @@ mod test {
     }
 
     #[test]
-    fn test_pullup_return_none_on_empty_chain() {
+    fn test_pullup_returns_none_on_empty_chain() {
         let mut chain = Chain::new();
         assert!(chain.pullup(1).is_none());
     }
 
     #[test]
-    fn test_pullup_return_what_has_been_appended() {
+    fn test_pullup_returns_what_has_been_appended() {
         let mut chain = Chain::new();
         let s = "HelloWorld".as_bytes();
         let ls = s.len();
