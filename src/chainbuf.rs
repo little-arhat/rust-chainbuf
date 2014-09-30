@@ -4,6 +4,7 @@ use collections::dlist::DList;
 use collections::Deque;
 
 use std::cmp;
+use std::str;
 use std::mem;
 
 use std::rc::{mod, Rc};
@@ -244,6 +245,24 @@ impl Chain {
     pub fn pullup_all(&mut self) -> Option<&[u8]> {
         let l = self.len();
         self.pullup(l)
+    }
+
+    /// Pulls all data and returns it as utf8 str or None if chain is empty
+    /// or contains invalid utf8 data.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// let res = chain.to_utf8_str();
+    /// assert!(res.is_some());
+    /// assert_eq!(res.unwrap(), "helloworld");
+    /// ```
+    pub fn to_utf8_str(&mut self) -> Option<&str> {
+        match self.pullup_all() {
+            Some(bytes) => { str::from_utf8(bytes) }
+            None => { None }
+        }
     }
 
     /// Consumes another chain and moves all data from it to itself.
@@ -780,4 +799,22 @@ mod test {
     }
 
 
+    #[test]
+    fn test_to_utf8_str_returns_none_on_non_utf8() {
+        let mut chain = Chain::new();
+        let b = [0xf0_u8, 0xff_u8, 0xff_u8, 0x10_u8];
+        chain.append_bytes(b);
+        let res = chain.to_utf8_str();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_to_utf8_returns_correct_string() {
+        let mut chain = Chain::new();
+        let s:String = task_rng().gen_ascii_chars().take(CHB_MIN_SIZE * 4).collect();
+        chain.append_bytes(s.as_bytes());
+        let res = chain.to_utf8_str();
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), s.as_slice());
+    }
 }
