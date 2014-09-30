@@ -450,6 +450,40 @@ impl Chain {
         self.length += size;
     }
 
+    /// Removes requested number of bytes from chain, by changing offsets.
+    /// # Note
+    /// If requested size greater than size of node it will be removed
+    /// and data will be fred if no other chain shares it.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("somebinaryprotocol".as_bytes());
+    /// {
+    ///     let head = chain.pullup(2); // parse header
+    /// }
+    /// chain.drain(2); // header parsed and no longer needed
+    /// assert_eq!(chain.len(), 16);
+    /// ```
+    pub fn drain(&mut self, size: uint) {
+        let mut msize = size;
+        while msize > 0 {
+            {
+                let node = match self.head.front_mut() {
+                    Some(nd) => { nd }
+                    None => { break }
+                };
+                if node.size() > size {
+                    node.start += size;
+                    self.length -= size;
+                    break;
+                }
+            }
+            // infailable
+            let node = self.head.pop_front().unwrap();
+            msize -= node.size();
+        }
+    }
 
     // XXX: private
 
@@ -798,6 +832,18 @@ mod test {
         assert_eq!(chain.pullup(sl).unwrap(), s);
     }
 
+    #[test]
+    fn test_drain_changes_chain_length() {
+        let mut chain = Chain::new();
+        let s = "helloworld".as_bytes();
+        let hsl = s.len() / 2;
+        chain.append_bytes(s);
+        let was_l = chain.len();
+        chain.drain(hsl);
+        let new_l = chain.len();
+        assert!(new_l < was_l);
+        assert_eq!(new_l, was_l - hsl);
+    }
 
     #[test]
     fn test_to_utf8_str_returns_none_on_non_utf8() {
