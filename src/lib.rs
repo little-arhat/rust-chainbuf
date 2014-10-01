@@ -19,6 +19,7 @@ extern crate collections;
 
 
 pub use chainbuf::Chain;
+pub use chainbuf::CHB_MIN_SIZE;
 
 // internal
 mod chainbuf;
