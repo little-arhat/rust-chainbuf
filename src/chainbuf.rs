@@ -2,6 +2,7 @@ extern crate collections;
 
 use collections::dlist::DList;
 use collections::Deque;
+use collections::slice::bytes;
 
 use std::cmp;
 use std::str;
@@ -11,17 +12,6 @@ use std::rc::{mod, Rc};
 
 pub static CHB_MIN_SIZE:uint = 32u;
 
-
-// TODO: move to utils
-fn blit<T:Clone>(src: &[T], dst: &mut [T], dst_ofs: uint) {
-    let len = src.len();
-    let sd = dst.slice_mut(dst_ofs, dst_ofs + len);
-    if len > sd.len() {
-        fail!("blit: source larger than destination");
-    }
-
-    let _ = sd.clone_from_slice(src);
-}
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
@@ -588,8 +578,13 @@ impl DataHolder {
     }
 
     fn copy_data_from(&mut self, src: &[u8], dst_offs: uint) {
-        blit(src,
-             self.data.as_mut_slice(), dst_offs);
+        let len = src.len();
+        let sd = self.data.as_mut_slice().slice_mut(dst_offs,
+                                                    dst_offs + len);
+        if len > sd.len() {
+            fail!("copy_data_from: source larger than destination");
+        }
+        bytes::copy_memory(sd, src);
     }
 
     fn data_mut(&mut self, offset: uint, size: uint) -> &mut [u8] {
