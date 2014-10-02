@@ -547,7 +547,7 @@ impl Node {
     }
 
     fn data(&self, size:uint) -> &[u8] {
-        self.dh.data.slice(self.start, self.start + size)
+        self.dh.data(self.start, self.start + size)
     }
 
 }
@@ -585,6 +585,10 @@ impl DataHolder {
             fail!("copy_data_from: source larger than destination");
         }
         bytes::copy_memory(sd, src);
+    }
+
+    fn data(&self, from: uint, to: uint) -> &[u8] {
+        self.data.slice(from, to)
     }
 
     fn data_mut(&mut self, offset: uint, size: uint) -> &mut [u8] {
