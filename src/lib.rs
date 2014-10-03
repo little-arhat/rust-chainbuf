@@ -5,6 +5,7 @@
 #![deny(missing_doc)]
 #![deny(warnings)]
 
+#![feature(if_let)]
 
 //! The main crate for the Chainbuf library.
 //!

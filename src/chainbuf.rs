@@ -13,19 +13,21 @@ use std::rc::{mod, Rc};
 pub static CHB_MIN_SIZE:uint = 32u;
 
 
+
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
 // XXX: if we had access to DList impl, we could do this more effective
 fn move_n<TT, T: Deque<TT>>(src: &mut T, dst: &mut T, n: uint) {
     let mut nc = n;
     while nc > 0 {
-        match src.pop_front() {
-            Some(el) => {
-                dst.push(el);
-                nc -= 1;
-            }
-            None => {
-                break;
+        if let Some(el) = src.pop_front() {
+            dst.push(el);
+            nc -= 1;
+        } else {
+            break;
+        }
+    }
+}
             }
         }
     }
@@ -185,6 +187,7 @@ impl Chain {
             return None
         }
         // could not fail, because self.size() > 0 => has node
+        // XXX: try if let here
         if self.head.front().unwrap().size() >= size {
             let node = self.head.front().unwrap();
             return Some(node.data(size));
