@@ -28,10 +28,51 @@ fn move_n<TT, T: Deque<TT>>(src: &mut T, dst: &mut T, n: uint) {
         }
     }
 }
-            }
-        }
+
+/// Finds subsequence of bytes in bytesequence. Returnt offset or None
+/// if nothing found.
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<uint> {
+    unsafe {
+        let hs:&str = mem::transmute(haystack);
+        let ns:&str = mem::transmute(needle);
+        hs.find_str(ns)
     }
 }
+
+fn find_overlap<U:Eq, T:Iterator<U> + Clone + Copy>(large: T, short: T) -> uint {
+    let mut haystack_it = large;
+    let mut needle_it = short;
+    let mut matched = 0u;
+    let mut current_needle = needle_it;
+    loop {
+        if let Some(b) = current_needle.next() {
+            if let Some(h) = haystack_it.next() {
+                if b == h {
+                    // save position of iter for backtracking
+                    needle_it = current_needle;
+                    current_needle = current_needle.clone();
+                    matched += 1;
+                } else {
+                    // match failed, if we have previous matches,
+                    // restore iter
+                    if matched > 0 {
+                        current_needle = needle_it;
+                    }
+                    // restore haystack iter
+                    haystack_it = large;
+                    matched = 0;
+                }
+            } else {
+                // haystack exhausted
+                haystack_it = large;
+            }
+        } else {
+            break;
+        }
+    }
+    return matched;
+}
+
 
 /// Chained buffer of bytes.
 /// # Examples:
@@ -476,6 +517,57 @@ impl Chain {
             let node = self.head.pop_front().unwrap();
             msize -= node.size();
         }
+    }
+
+    /// Finds sequence of bytes inside the chain and returns offset to
+    /// first symbol of sequence or None if nothing found.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// let res = chain.find("owo".as_bytes());
+    /// assert!(res.is_some());
+    /// assert_eq!(res.unwrap(), 4);
+    /// ```
+    pub fn find(&self, needle: &[u8]) -> Option<uint> {
+        let mut msum = 0;
+        let mut work_needle = needle;
+        for n in self.head.iter() {
+            // Try to find entire needle in one node
+            let node_data = n.data(n.size());
+            if let Some(offs) = find_bytes(node_data, work_needle) {
+                return Some(msum + offs);
+            } else {
+                // Entire needle wasn't found, maybe suffix of data is
+                // prefix of needle?
+                // Find number of overlaped bytes
+                let overlaped = if node_data.len() > work_needle.len() {
+                    // If node_data larger than needle we gonna search
+                    // from the back, looking whether some prefix of needle
+                    // equal to the suffix of node_data
+                    find_overlap(node_data.iter().rev(),
+                                 work_needle.iter().rev())
+                } else {
+                    // Otherwase, we're searching for suffix of node_data
+                    // that equal to some prefix of the needle
+                    find_overlap(work_needle.iter(),
+                                 node_data.iter())
+                };
+
+                if overlaped > 0 {
+                    // if we found something, move offset in needle
+                    work_needle = needle.slice_from(overlaped);
+                } else {
+                    // we may have partial match before this point,
+                    // so we need to reset work_needle and start again
+                    work_needle = needle;
+                }
+            }
+            msum += n.size();
+        }
+
+        None
     }
 
     // XXX: private

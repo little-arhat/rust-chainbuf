@@ -6,6 +6,7 @@ extern crate chainbuf;
 mod test {
     use chainbuf::{CHB_MIN_SIZE, Chain};
     use std::rand::{task_rng, Rng};
+    use std::str;
 
     #[test]
     fn test_append_bytes_changes_length() {
@@ -266,5 +267,63 @@ mod test {
         let res = chain.to_utf8_str();
         assert!(res.is_some());
         assert_eq!(res.unwrap(), s.as_slice());
+    }
+
+    #[test]
+    fn test_find_returns_none_on_empty_chain() {
+        let chain = Chain::new();
+        let res = chain.find("helloworld".as_bytes());
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_find_returns_zero_on_empty_needle() {
+        let mut chain = Chain::new();
+        chain.append_bytes("helloworld".as_bytes());
+        let res = chain.find("".as_bytes());
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_find_returns_none_if_not_found() {
+        let mut chain = Chain::new();
+        let needle = [1u8, 2u8, 3u8];
+        let one_seq = 128u;
+        for _ in range(0u, 20) {
+            let s:String = task_rng().gen_ascii_chars().take(one_seq).collect();
+            let b = s.as_bytes();
+            chain.append_bytes(b);
+        }
+        let res = chain.find(needle);
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_find_returns_correct_offset() {
+        let mut chain = Chain::new();
+        let mut offs = 0;
+        let mut needle = String::from_str("");
+        for i in range(0u, 20) {
+            let mut int_rng = task_rng();
+            let s:String = task_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
+            let bytes = s.as_bytes();
+
+            chain.append_bytes(bytes);
+            if i < 11 {
+                offs += bytes.len();
+            }
+            if i == 11 {
+                let m = bytes.len();
+                let b = int_rng.gen_range(5, m/2);
+                let e = int_rng.gen_range(b, m);
+                needle = String::from_str(str::from_utf8(bytes.slice(b, e)).unwrap());
+                offs += b;
+            }
+        }
+        let res = chain.find(needle.as_bytes());
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), offs);
+
     }
 }
