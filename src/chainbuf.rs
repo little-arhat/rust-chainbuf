@@ -420,7 +420,7 @@ impl Chain {
     }
 
     /// Changes offsets in chain to specified number of bytes.
-    /// Should be used in conjuction with .reserve();
+    /// Should be used in conjuction with .reserve().
     /// # Example
     /// ```
     /// use chainbuf::Chain;
