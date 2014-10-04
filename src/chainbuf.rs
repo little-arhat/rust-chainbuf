@@ -236,7 +236,6 @@ impl Chain {
             return None
         }
         // could not fail, because self.size() > 0 => has node
-        // XXX: try if let here
         if self.head.front().unwrap().size() >= size {
             let node = self.head.front().unwrap();
             return Some(node.get_data_from_start(size));
