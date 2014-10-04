@@ -238,7 +238,7 @@ impl Chain {
         // XXX: try if let here
         if self.head.front().unwrap().size() >= size {
             let node = self.head.front().unwrap();
-            return Some(node.data(size));
+            return Some(node.get_data_from_start(size));
         }
         let mut newn = Node::new(DataHolder::new(size));
         // XXX: we need this scope to be able to move newn inside our list
@@ -253,7 +253,8 @@ impl Chain {
                         let node_end = newn.end;
                         // we just created new data holder, so we have unique ownership
                         let dh = rc::get_mut(&mut newn.dh).unwrap();
-                        dh.copy_data_from(node.data(csize), node_end);
+                        dh.copy_data_from(node.get_data_from_start(csize),
+                                          node_end);
                     }
                     newn.end += csize;
 
@@ -464,7 +465,7 @@ impl Chain {
         // infailable: have node, or have added it above
         let node = self.head.back_mut().unwrap();
         let dh = rc::get_mut(&mut node.dh).unwrap();
-        dh.data_mut(node.end, size)
+        dh.get_data_mut(node.end, size)
     }
 
     /// Changes offsets in chain to specified number of bytes.
@@ -542,7 +543,7 @@ impl Chain {
         let mut work_needle = needle;
         for n in self.head.iter() {
             // Try to find entire needle in one node
-            let node_data = n.data(n.size());
+            let node_data = n.get_data_from_start(n.size());
             if let Some(offs) = find_bytes(node_data, work_needle) {
                 return Some(msum + offs);
             } else {
@@ -675,18 +676,22 @@ impl PartialEq for Chain {
         let mut ofs1 = 0;
         let mut ofs2 = 0;
         while n1.is_some() && n2.is_some() {
-            for (d1, d2) in n1.unwrap().data_from(ofs1).iter().zip(n2.unwrap().data_from(ofs2).iter()) {
+            let node1 = n1.unwrap();
+            let node2 = n2.unwrap();
+            let nit1 = node1.get_data_from(ofs1, node1.size() - ofs1).iter();
+            let nit2 = node2.get_data_from(ofs2, node2.size() - ofs2).iter();
+            for (d1, d2) in nit1.zip(nit2) {
                 if d1 != d2 {
                     return false;
                 }
                 ofs1 += 1;
                 ofs2 += 1;
             }
-            if ofs1 >= n1.unwrap().size() {
+            if ofs1 >= node1.size() {
                 n1 = it1.next();
                 ofs1 = 0;
             }
-            if ofs2 >= n2.unwrap().size() {
+            if ofs2 >= node2.size() {
                 n2 = it2.next();
                 ofs2 = 0;
             }
@@ -724,12 +729,14 @@ impl Node {
         self.dh.size - self.end
     }
 
-    fn data(&self, size:uint) -> &[u8] {
-        self.dh.data(self.start, self.start + size)
+    #[inline]
+    fn get_data_from_start(&self, size:uint) -> &[u8] {
+        self.dh.get_data(self.start, size)
     }
 
-    fn data_from(&self, offs: uint) -> &[u8] {
-        self.dh.data(self.start + offs, self.start + offs + self.size())
+    #[inline]
+    fn get_data_from(&self, offs: uint, size: uint) -> &[u8] {
+        self.dh.get_data(self.start + offs, size)
     }
 }
 
@@ -768,11 +775,13 @@ impl DataHolder {
         bytes::copy_memory(sd, src);
     }
 
-    fn data(&self, from: uint, to: uint) -> &[u8] {
-        self.data.slice(from, to)
+    #[inline]
+    fn get_data(&self, offset: uint, size: uint) -> &[u8] {
+        self.data.slice(offset, offset + size)
     }
 
-    fn data_mut(&mut self, offset: uint, size: uint) -> &mut [u8] {
+    #[inline]
+    fn get_data_mut(&mut self, offset: uint, size: uint) -> &mut [u8] {
         self.data.as_mut_slice().slice_mut(offset, offset + size)
     }
 }
