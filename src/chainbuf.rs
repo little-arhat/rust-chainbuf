@@ -145,6 +145,7 @@ impl Chain {
     /// chain.append_bytes("helloworld".as_bytes());
     /// println!("{}", chain.len()); // should print 10
     /// ```
+    #[inline]
     pub fn len(&self) -> uint {
         self.length
     }
@@ -713,6 +714,7 @@ struct Node {
 }
 
 impl Node {
+    #[inline]
     fn new(dh: Rc<DataHolder>) -> Node {
         Node {
             dh: dh,
@@ -721,10 +723,12 @@ impl Node {
         }
     }
 
+    #[inline]
     fn size(&self) -> uint {
         self.end - self.start
     }
 
+    #[inline]
     fn room(&self) -> uint {
         self.dh.size - self.end
     }
