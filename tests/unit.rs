@@ -324,6 +324,34 @@ mod test {
         let res = chain.find(needle.as_bytes());
         assert!(res.is_some());
         assert_eq!(res.unwrap(), offs);
+    }
 
+    #[test]
+    fn test_chains_with_same_content_are_equal() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        let total = 2048u;
+        let mut t = total;
+        let one_seq = 128u;
+        while t > 0 {
+            let s:String = task_rng().gen_ascii_chars().take(one_seq).collect();
+            let b = s.as_bytes();
+            chain1.append_bytes(b);
+            chain2.append_bytes(b);
+            t -= one_seq;
+        }
+        assert!(chain1 == chain2);
+        let res1 = chain1.pullup(total).unwrap();
+        let res2 = chain2.pullup(total).unwrap();
+        assert_eq!(res1, res2);
+    }
+
+    #[test]
+    fn test_chains_with_different_content_are_not_equal() {
+        let mut chain1 = Chain::new();
+        let mut chain2 = Chain::new();
+        chain1.append_bytes("hello".as_bytes());
+        chain2.append_bytes("world".as_bytes());
+        assert!(chain1 != chain2);
     }
 }

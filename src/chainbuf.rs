@@ -616,6 +616,45 @@ impl Chain {
     }
 }
 
+/// Chains are equal if they content are equal.
+/// Memory layout is not important.
+impl PartialEq for Chain {
+    fn eq(&self, other: &Chain) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        let mut it1 = self.head.iter();
+        let mut it2 = other.head.iter();
+        let mut n1 = it1.next();
+        let mut n2 = it2.next();
+        let mut ofs1 = 0;
+        let mut ofs2 = 0;
+        while n1.is_some() && n2.is_some() {
+            for (d1, d2) in n1.unwrap().data_from(ofs1).iter().zip(n2.unwrap().data_from(ofs2).iter()) {
+                if d1 != d2 {
+                    return false;
+                }
+                ofs1 += 1;
+                ofs2 += 1;
+            }
+            if ofs1 >= n1.unwrap().size() {
+                n1 = it1.next();
+                ofs1 = 0;
+            }
+            if ofs2 >= n2.unwrap().size() {
+                n2 = it2.next();
+                ofs2 = 0;
+            }
+        }
+        // We have size check before the loop and the loop simultaneously
+        // consumes bytes from both chains, so here we have identical chains
+        // (with possibly different layouts).
+        return true;
+    }
+}
+
+
 /// Node of chain buffer.
 /// Owned by Chain.
 struct Node {
@@ -645,6 +684,9 @@ impl Node {
         self.dh.data(self.start, self.start + size)
     }
 
+    fn data_from(&self, offs: uint) -> &[u8] {
+        self.dh.data(self.start + offs, self.start + offs + self.size())
+    }
 }
 
 impl Clone for Node {
