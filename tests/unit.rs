@@ -349,4 +349,38 @@ mod test {
         chain2.append_bytes("world".as_bytes());
         assert!(chain1 != chain2);
     }
+
+    #[test]
+    fn test_copy_bytes_from_returns_empty_vec_from_empty_chain() {
+        let chain = Chain::new();
+        let empty_vec = Vec::new();
+        let res = chain.copy_bytes_from(10, 10);
+        assert_eq!(res, empty_vec);
+    }
+
+    #[test]
+    fn test_copy_bytes_from_returns_copies_bytes() {
+        let mut chain = Chain::new();
+        let mut offs = 0;
+        let v = vec!["helloworld", "example", "someotherstring", "differentstring"];
+        for (i, el) in v.iter().enumerate() {
+            chain.append_bytes(el.as_bytes());
+            if i < 2 {
+                offs += el.as_bytes().len();
+            }
+        }
+        let res = chain.copy_bytes_from(offs, v[2].len());
+        assert_eq!(res.as_slice(), v[2].as_bytes());
+    }
+
+    #[test]
+    fn test_copy_bytes_returns_less_than_requested_if_chain_does_not_have_data() {
+        let mut chain = Chain::new();
+        chain.append_bytes("helloworld".as_bytes());
+        let size = chain.len();
+        let res = chain.copy_bytes_from(5, size);
+        assert!(res.len() < size);
+        assert_eq!(res.len(), size - 5);
+
+    }
 }

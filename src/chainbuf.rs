@@ -579,8 +579,37 @@ impl Chain {
         None
     }
 
-    // XXX: private
+    /// Copy size bytes from chain starting from specified offset.
+    /// # Example:
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// assert_eq!(chain.copy_bytes_from(2, 2), "ll".as_bytes().to_vec());
+    /// ```
+    pub fn copy_bytes_from(&self, offs: uint, size: uint) -> Vec<u8> {
+        if offs > self.len() {
+            return Vec::new();
+        }
+        let buf_size = cmp::min(size, self.len() - offs);
+        let mut buf = Vec::with_capacity(buf_size);
+        let mut msize = buf_size;
+        // Cannot fail: offs < self.len()
+        let node_info = self.node_at_pos(offs).unwrap();
+        let mut node:Option<&Node> = Some(node_info.node);
+        let mut moffs = node_info.offset;
+        let mut nodes_it = self.head.iter().skip(node_info.pos + 1);
+        while node.is_some() && (msize > 0) {
+            let tocopy = cmp::min(node.unwrap().size() - moffs, size);
+            let d = node.unwrap().get_data_from(moffs, tocopy);
+            buf.extend(d.iter().map(|x| x.clone()));
+            msize -= d.len();
+            moffs = 0;
+            node = nodes_it.next();
+        }
 
+        return buf;
+    }
 
     // XXX: private
     // XXX: horrible code duplication with only difference in `mut` :(
