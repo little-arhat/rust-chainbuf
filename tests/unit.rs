@@ -6,7 +6,6 @@ extern crate chainbuf;
 mod test {
     use chainbuf::{CHB_MIN_SIZE, Chain};
     use std::rand::{task_rng, Rng};
-    use std::str;
 
     #[test]
     fn test_append_bytes_changes_length() {
@@ -303,22 +302,18 @@ mod test {
     fn test_find_returns_correct_offset() {
         let mut chain = Chain::new();
         let mut offs = 0;
-        let mut needle = String::from_str("");
+        let needle = "the quick brown fox jumps over the lazy dog";
         for i in range(0u, 20) {
             let mut int_rng = task_rng();
             let s:String = task_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
             let bytes = s.as_bytes();
 
             chain.append_bytes(bytes);
-            if i < 11 {
+            if i <= 11 {
                 offs += bytes.len();
             }
             if i == 11 {
-                let m = bytes.len();
-                let b = int_rng.gen_range(5, m/2);
-                let e = int_rng.gen_range(b, m);
-                needle = String::from_str(str::from_utf8(bytes.slice(b, e)).unwrap());
-                offs += b;
+                chain.append_bytes(needle.as_bytes());
             }
         }
         let res = chain.find(needle.as_bytes());
