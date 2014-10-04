@@ -92,11 +92,18 @@ pub struct Chain {
     length: uint
 }
 
-struct NodeAtPosInfo<'a> {
+struct NodeAtPosInfoMut<'a> {
     node: &'a mut Node, // link to node
     pos: uint, // position of node in chain
     offset: uint // offset inside node
 }
+
+struct NodeAtPosInfo<'a> {
+    node: &'a Node, // link to node
+    pos: uint, // position of node in chain
+    offset: uint // offset inside node
+}
+
 
 impl Chain {
     /// Creates new, empty chainbuf.
@@ -380,7 +387,7 @@ impl Chain {
         let mut newn = None;
         // We've done checks, so we cannot have None here
         {
-            let node_info = src.node_at_pos(size).unwrap();
+            let node_info = src.node_at_pos_mut(size).unwrap();
             if node_info.offset != 0 {
                 // We requesting data in the middle of node, should split it then
                 let mut nn = node_info.node.clone();
@@ -572,14 +579,17 @@ impl Chain {
 
     // XXX: private
 
-    fn node_at_pos<'a>(&'a mut self, pos: uint) -> Option<NodeAtPosInfo<'a>> {
+
+    // XXX: private
+    // XXX: horrible code duplication with only difference in `mut` :(
+    fn node_at_pos_mut<'a>(&'a mut self, pos: uint) -> Option<NodeAtPosInfoMut> {
         if (pos << 1) > self.len() {
             // Find from tail
             let mut toff = self.len(); // tail offset
             for (i, n) in self.head.iter_mut().rev().enumerate() {
                 let nsize = n.size();
                 if (toff - pos) <= nsize {
-                    return Some(NodeAtPosInfo {
+                    return Some(NodeAtPosInfoMut {
                         node: n,
                         pos: i,
                         offset: (nsize - (toff - pos))
@@ -593,6 +603,39 @@ impl Chain {
             for (i, n) in self.head.iter_mut().enumerate() {
                 let nsize = n.size();
                 if (pos - hoff) < nsize {
+                    return Some(NodeAtPosInfoMut {
+                        node: n,
+                        pos: i,
+                        offset: pos - hoff
+                    })
+                }
+                hoff += nsize;
+            }
+        }
+        None
+    }
+
+    fn node_at_pos<'a>(&'a self, pos: uint) -> Option<NodeAtPosInfo> {
+        if (pos << 1) > self.len() {
+            // Find from tail
+            let mut toff = self.len(); // tail offset
+            for (i, n) in self.head.iter().rev().enumerate() {
+                let nsize = n.size();
+                if (toff - pos) <= nsize {
+                    return Some(NodeAtPosInfo {
+                        node: n,
+                        pos: i,
+                        offset: (nsize - (toff - pos))
+                    })
+                }
+                toff -= nsize;
+            }
+        } else {
+            // Find from begining
+            let mut hoff = 0; // head offset
+            for (i, n) in self.head.iter().enumerate() {
+                let nsize = n.size();
+                if (pos - hoff) < nsize {
                     return Some(NodeAtPosInfo {
                         node: n,
                         pos: i,
@@ -604,6 +647,7 @@ impl Chain {
         }
         None
     }
+
 
     fn add_node_tail(&mut self, node: Node) {
         self.length += node.size();
