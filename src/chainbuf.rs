@@ -217,10 +217,10 @@ impl Chain {
         self.length += size;
     }
 
-    /// Returns contiguous slice of data of requested size or None,
+    /// Returns slice of data of requested size or None,
     /// if chain does not have enough data.
     /// If data of requested size span multiple nodes, new node, containing
-    /// all data will be created instead.
+    /// all requested data will be created instead.
     /// # Example
     /// ```
     /// use chainbuf::Chain;
