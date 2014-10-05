@@ -275,6 +275,33 @@ impl Chain {
         return self.pullup(size)
     }
 
+    /// Returns slice of requested size starting from specified offset.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// let res = chain.pullup_from(2, 4);
+    /// assert!(res.is_some());
+    /// assert_eq!(res.unwrap(), "llow".as_bytes());
+    /// ```
+    pub fn pullup_from(&mut self, offs: uint, size: uint) -> Option<&[u8]> {
+        if (offs >= self.len()) || (size == 0) {
+            return None;
+        }
+        let mut tmp = Chain::new();
+        tmp.move_from(self, offs);
+        // Run pullup to be sure, that we have dataholder that contains
+        // requested number of bytes in contigious memory
+        let _ = self.pullup(size);
+        tmp.move_all_from(self);
+        self.concat(tmp);
+        // We've done sanity check, so can safely unwrap this:
+        let node_info = self.node_at_pos(offs).unwrap();
+        // This node will contain requested data from the start
+        return Some(node_info.node.get_data_from_start(size));
+    }
+
     /// Shortcut for chain.pullup(chain.len()).
     /// # Example
     /// ```

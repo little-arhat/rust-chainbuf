@@ -381,6 +381,29 @@ mod test {
         let res = chain.copy_bytes_from(5, size);
         assert!(res.len() < size);
         assert_eq!(res.len(), size - 5);
+    }
+
+    #[test]
+    fn test_pullup_from_returns_none_on_empty_chain() {
+        let mut chain = Chain::new();
+        let res = chain.pullup_from(10, 10);
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_pullup_from_returns_data_from_correct_offset() {
+        let mut chain = Chain::new();
+        let mut offs = 0;
+        let v = vec!["helloworld", "example", "someotherstring", "differentstring"];
+        for (i, el) in v.iter().enumerate() {
+            chain.append_bytes(el.as_bytes());
+            if i < 2 {
+                offs += el.as_bytes().len();
+            }
+        }
+        let res = chain.pullup_from(offs, v[2].len());
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), v[2].as_bytes());
 
     }
 }
