@@ -327,6 +327,26 @@ impl Chain {
         return mut_self.pullup_from(offs, size);
     }
 
+    /// Finds first occurence of *needle* inside chain and returns data
+    /// from the beginning of chain to the end of found sequence.
+    /// Returns None if nothing was found.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// let res = chain.pullup_to("wor".as_bytes());
+    /// assert_eq!(res.unwrap(), "hellowor".as_bytes());
+    /// ```
+    pub fn pullup_to(&self, needle: &[u8]) -> Option<&[u8]> {
+        match self.find(needle) {
+            Some(offset) => {
+                self.pullup(offset + needle.len())
+            }
+            None => { return None; }
+        }
+    }
+
     /// Shortcut for chain.pullup(chain.len()).
     /// # Example
     /// ```

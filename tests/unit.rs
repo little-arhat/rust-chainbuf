@@ -404,6 +404,44 @@ mod test {
         let res = chain.pullup_from(offs, v[2].len());
         assert!(res.is_some());
         assert_eq!(res.unwrap(), v[2].as_bytes());
-
     }
+
+    #[test]
+    fn test_pullup_to_returns_none_on_empty_chain() {
+        let chain = Chain::new();
+        let res = chain.pullup_to("helloworld".as_bytes());
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_pullup_to_returns_none_if_nothing_found() {
+        let mut chain = Chain::new();
+        chain.append_bytes("helloworld".as_bytes());
+        let res = chain.pullup_to("example".as_bytes());
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_pullup_to_returns_correct_sequence() {
+        fn join_string(del: &str, parts: &[&str]) -> String {
+            let mut s = String::new();
+            let pl = parts.len();
+            for &el in parts.iter().take(pl - 1) {
+                s.push_str(el);s.push_str(del);
+            }
+            s.push_str(parts[pl - 1]);
+            s
+        }
+        let mut chain = Chain::new();
+        let v = vec!["helloworld", "example", "someotherstring", "differentstring"];
+        for el in v.iter() {
+            chain.append_bytes(el.as_bytes());
+            chain.append_bytes("-".as_bytes());
+        }
+        let patt = join_string("-", v.slice(0, 3));
+        let res = chain.pullup_to("otherstring".as_bytes());
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), patt.as_bytes());
+    }
+
 }
