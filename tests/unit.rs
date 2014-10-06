@@ -36,7 +36,7 @@ mod test {
 
     #[test]
     fn test_pullup_returns_none_on_empty_chain() {
-        let mut chain = Chain::new();
+        let chain = Chain::new();
         assert!(chain.pullup(1).is_none());
     }
 
@@ -385,7 +385,7 @@ mod test {
 
     #[test]
     fn test_pullup_from_returns_none_on_empty_chain() {
-        let mut chain = Chain::new();
+        let chain = Chain::new();
         let res = chain.pullup_from(10, 10);
         assert!(res.is_none());
     }

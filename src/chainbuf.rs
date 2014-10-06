@@ -231,7 +231,16 @@ impl Chain {
     /// assert_eq!(chain.pullup(2).unwrap(), "he".as_bytes()); // does not create new node
     /// assert_eq!(chain.pullup(25).unwrap(), "helloworldhelloworldhello".as_bytes()); // create new node
     /// ```
-    pub fn pullup(&mut self, size: uint) -> Option<&[u8]> {
+    pub fn pullup(&self, size: uint) -> Option<&[u8]> {
+        // This method logically immutable, so it's nice to have &self
+        // in method signature.
+        // Idiomatic Rust way to implement such methods is to use RefCell.
+        // But we only need such feature in this method, and using RefCell
+        // to access nodelist (self.head) in all other methods looks like
+        // an overkill. And we'll also lose statically checked lifetimes for
+        // main field of Chain datastructure.
+        // It seems implementing this method with `unsafe` and `pullup` is
+        // far better than using RefCell everywhere.
         if size == 0 || size > self.len() {
             return None
         }
@@ -242,11 +251,13 @@ impl Chain {
         }
         let mut newn = Node::new(DataHolder::new(size));
         // XXX: we need this scope to be able to move newn inside our list
+        let mut_self: &mut Chain;
+        unsafe { mut_self = mem::transmute(self); }
         {
             let mut msize = size;
             while msize > 0 {
                 {
-                    let node = self.head.front_mut().unwrap();
+                    let node = mut_self.head.front_mut().unwrap();
                     let csize = cmp::min(node.size(), msize);
                     // XXX: we need this scope only to beat borrow checker
                     {
@@ -260,19 +271,19 @@ impl Chain {
 
                     if node.size() > msize {
                         node.start += msize;
-                        self.length -= msize;
+                        mut_self.length -= msize;
                         break
                     }
                 }
                 // infailable
-                let n = self.head.pop_front().unwrap();
-                self.length -= n.size();
+                let n = mut_self.head.pop_front().unwrap();
+                mut_self.length -= n.size();
                 msize -= n.size();
             }
         }
-        self.add_node_head(newn);
+        mut_self.add_node_head(newn);
         // Now first node.size >= size, so we recurse
-        return self.pullup(size)
+        return mut_self.pullup(size)
     }
 
     /// Returns slice of requested size starting from specified offset.
@@ -285,21 +296,35 @@ impl Chain {
     /// assert!(res.is_some());
     /// assert_eq!(res.unwrap(), "llow".as_bytes());
     /// ```
-    pub fn pullup_from(&mut self, offs: uint, size: uint) -> Option<&[u8]> {
+    pub fn pullup_from(&self, offs: uint, size: uint) -> Option<&[u8]> {
         if (offs >= self.len()) || (size == 0) {
             return None;
         }
-        let mut tmp = Chain::new();
-        tmp.move_from(self, offs);
-        // Run pullup to be sure, that we have dataholder that contains
-        // requested number of bytes in contigious memory
-        let _ = self.pullup(size);
-        tmp.move_all_from(self);
-        self.concat(tmp);
+        // Fast path: check whether node at this position have all requested
+        // data:
         // We've done sanity check, so can safely unwrap this:
         let node_info = self.node_at_pos(offs).unwrap();
-        // This node will contain requested data from the start
-        return Some(node_info.node.get_data_from_start(size));
+        if size <= node_info.node.size() - node_info.offset {
+            return Some(node_info.node.get_data_from(node_info.offset,
+                                                     size));
+        }
+        // If it's not the case, we need to rebuild our chain to provide
+        // contigious region of memory.
+        // We need mutable reference to self for this, so once again use
+        // std::mem::transmute:
+        let mut_self: &mut Chain;
+        unsafe { mut_self = mem::transmute(self); };
+        let mut tmp = Chain::new();
+        tmp.move_from(mut_self, offs);
+        // Run pullup to be sure, that we have dataholder that contains
+        // requested number of bytes in contigious memory
+        let _ = mut_self.pullup(size);
+        tmp.move_all_from(mut_self);
+        mut_self.concat(tmp);
+
+        // Now we can be sure that requested data fits inside one node, so
+        // we recurse into itself to take Fast Path.
+        return mut_self.pullup_from(offs, size);
     }
 
     /// Shortcut for chain.pullup(chain.len()).
@@ -311,7 +336,7 @@ impl Chain {
     /// let buf = chain.pullup_all();
     /// assert_eq!(buf.unwrap().len(), 10);
     /// ```
-    pub fn pullup_all(&mut self) -> Option<&[u8]> {
+    pub fn pullup_all(&self) -> Option<&[u8]> {
         let l = self.len();
         self.pullup(l)
     }
@@ -327,7 +352,7 @@ impl Chain {
     /// assert!(res.is_some());
     /// assert_eq!(res.unwrap(), "helloworld");
     /// ```
-    pub fn to_utf8_str(&mut self) -> Option<&str> {
+    pub fn to_utf8_str(&self) -> Option<&str> {
         match self.pullup_all() {
             Some(bytes) => { str::from_utf8(bytes) }
             None => { None }
