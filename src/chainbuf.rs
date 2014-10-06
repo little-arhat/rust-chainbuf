@@ -75,7 +75,7 @@ fn find_overlap<U:Eq, T:Iterator<U> + Clone + Copy>(large: T, short: T) -> uint 
 
 
 /// Chained buffer of bytes.
-/// # Examples:
+/// # Example
 /// ```
 /// use chainbuf::Chain;
 /// let mut chain = Chain::new();
@@ -217,8 +217,9 @@ impl Chain {
         self.length += size;
     }
 
-    /// Returns slice of data of requested size or None,
+    /// Returns *size* bytes from the beginning of chain or None,
     /// if chain does not have enough data.
+    /// # Note
     /// If data of requested size span multiple nodes, new node, containing
     /// all requested data will be created instead.
     /// # Example
@@ -397,7 +398,7 @@ impl Chain {
     }
 
     /// Discards all data in chain, deletes all nodes and set length to 0.
-    /// # Example:
+    /// # Example
     /// ```
     /// use chainbuf::Chain;
     /// let mut chain = Chain::new();
@@ -651,7 +652,7 @@ impl Chain {
     }
 
     /// Copy size bytes from chain starting from specified offset.
-    /// # Example:
+    /// # Example
     /// ```
     /// use chainbuf::Chain;
     /// let mut chain = Chain::new();
