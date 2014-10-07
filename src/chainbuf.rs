@@ -158,7 +158,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
             Some(nd) => {
-                (nd.room() < size) || !rc::is_unique(&nd.dh)
+                (nd.room() < size) || nd.has_readonly_data_holder()
             }
             None => {
                 true
@@ -192,7 +192,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.front() {
             Some(nd) => {
-                (size > nd.start || !rc::is_unique(&nd.dh))
+                (size > nd.start || nd.has_readonly_data_holder()
             }
             None => {
                 true
@@ -523,7 +523,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
             Some(nd) => {
-                (nd.room() < size) || !rc::is_unique(&nd.dh)
+                (nd.room() < size) || nd.has_readonly_data_holder()
             }
             None => {
                 true
@@ -835,6 +835,11 @@ impl Node {
     }
 
     #[inline]
+    fn has_readonly_data_holder(&self) -> bool {
+        !rc::is_unique(&self.dh) || self.dh.is_readonly_type()
+    }
+
+    #[inline]
     fn get_data_from_start(&self, size:uint) -> &[u8] {
         self.dh.get_data(self.start, size)
     }
@@ -868,6 +873,12 @@ impl DataHolder {
             size: size,
             data: Vec::from_elem(size, 0)
         })
+    }
+
+    /// Indicates whether this type of dataholder immutable or not.
+    #[inline]
+    fn is_readonly_type(&self) -> bool {
+        false
     }
 
     fn copy_data_from(&mut self, src: &[u8], dst_offs: uint) {
