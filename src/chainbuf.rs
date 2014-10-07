@@ -251,9 +251,10 @@ impl Chain {
             return Some(node.get_data_from_start(size));
         }
         let mut newn = Node::new(DataHolder::new(size));
-        // XXX: we need this scope to be able to move newn inside our list
+
         let mut_self: &mut Chain;
         unsafe { mut_self = mem::transmute(self); }
+        // XXX: we need this scope to be able to move newn inside our list
         {
             let mut msize = size;
             while msize > 0 {
@@ -868,6 +869,7 @@ struct DataHolder{
 }
 
 impl DataHolder {
+    #[inline]
     fn new(size: uint) -> Rc<DataHolder> {
         Rc::new(DataHolder {
             size: size,
@@ -881,6 +883,7 @@ impl DataHolder {
         false
     }
 
+    #[inline]
     fn copy_data_from(&mut self, src: &[u8], dst_offs: uint) {
         let len = src.len();
         let sd = self.data.as_mut_slice().slice_mut(dst_offs,
