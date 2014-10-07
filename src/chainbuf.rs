@@ -192,7 +192,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.front() {
             Some(nd) => {
-                (size > nd.start || nd.has_readonly_data_holder()
+                size > nd.start || nd.has_readonly_data_holder()
             }
             None => {
                 true
