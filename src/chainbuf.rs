@@ -178,7 +178,7 @@ impl Chain {
             let node_end = node.end;
             // we should be sole owner of data holder inside node here
             let dh = rc::get_mut(&mut node.dh).unwrap();
-            dh.copy_data_from(data, node_end);
+            dh.fill_from(node_end, data);
         }
         node.end += size;
         self.length += size;
@@ -211,7 +211,7 @@ impl Chain {
         {
             let node_start = node.start;
             let dh = rc::get_mut(&mut node.dh).unwrap();
-            dh.copy_data_from(data, node_start - size);
+            dh.fill_from(node_start - size, data);
         }
         node.start -= size;
         self.length += size;
@@ -266,8 +266,8 @@ impl Chain {
                         let node_end = newn.end;
                         // we just created new data holder, so we have unique ownership
                         let dh = rc::get_mut(&mut newn.dh).unwrap();
-                        dh.copy_data_from(node.get_data_from_start(csize),
-                                          node_end);
+                        dh.fill_from(node_end,
+                                     node.get_data_from_start(csize));
                     }
                     newn.end += csize;
 
@@ -884,7 +884,9 @@ impl DataHolder {
     }
 
     #[inline]
-    fn copy_data_from(&mut self, src: &[u8], dst_offs: uint) {
+    /// Fills buffer from offset *dst_offs* by copying data from supplied
+    /// buffer *src*.
+    fn fill_from(&mut self, dst_offs: uint, src: &[u8]) {
         let len = src.len();
         let sd = self.data.as_mut_slice().slice_mut(dst_offs,
                                                     dst_offs + len);
