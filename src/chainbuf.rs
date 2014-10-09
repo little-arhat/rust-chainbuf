@@ -1,14 +1,18 @@
-extern crate collections;
 
-use collections::dlist::DList;
-use collections::Deque;
-use collections::slice::bytes;
+
+use {uio};
+
+use libc;
 
 use std::cmp;
 use std::str;
 use std::mem;
 
 use std::rc::{mod, Rc};
+
+use collections::dlist::DList;
+use collections::Deque;
+use collections::slice::bytes;
 
 pub static CHB_MIN_SIZE:uint = 32u;
 
@@ -682,6 +686,57 @@ impl Chain {
         }
 
         return buf;
+    }
+
+
+    /// Writes content of chain to specified file descriptor *fd*. Amount of
+    /// successfully written bytes are then drained out of the chain and
+    /// returned.
+    /// Optional *nodes* and *size* allow to control amount of nodes that
+    /// will be written.
+    /// *nodes* specifies exact number of nodes to be written.
+    /// *size* specifies minimum number of bytes that should be present in
+    /// nodes.
+    /// # Note
+    /// It uses writev underneath, each node's contet will go in corresponding
+    /// iovec struct in iovec array.
+    /// # Example
+    /// ```ignore
+    /// use native::io::net::TcpStream;
+    /// use std::rt::rtio;
+    /// use chainbuf::Chain;
+    /// let addr = rtio::SocketAddr{
+    ///     ip: rtio::Ipv4Addr(127, 0, 0, 1),
+    ///     port: 8989u16,
+    /// };
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// let mut stream = TcpStream::connect(addr, None).ok().unwrap();
+    /// let written = chain.write_to_fd(stream.fd(), None, None);
+    /// println!("Written: {}", written);
+    /// ```
+    #[cfg(unix)]
+    pub fn write_to_fd(&mut self, fd: libc::c_int, size:Option<uint>, nodes:Option<uint>) -> libc::ssize_t {
+        // TODO: use uint for fd and i32 as return type?
+        // TODO: use IoResult?
+        let max_size = if size.is_some() { size.unwrap() } else { self.len() };
+        let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
+        // XXX: want to allocate this on stack, though
+        let mut v = Vec::with_capacity(max_nodes);
+        let mut towrite = 0;
+        for n in self.head.iter().take(max_nodes) {
+            let ns = n.size();
+            v.push(uio::iovec::from_slice(n.get_data_from_start(ns)));
+            towrite += ns;
+            if towrite >= max_size {
+                break;
+            }
+        }
+        let wb = uio::writev(fd, v.as_slice());
+        if wb >= 0 {
+            self.drain(wb as uint);
+        }
+        wb
     }
 
     // XXX: private
