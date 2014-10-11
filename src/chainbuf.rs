@@ -697,8 +697,8 @@ impl Chain {
     /// *size* specifies minimum number of bytes that should be present in
     /// nodes.
     /// # Note
-    /// It uses writev underneath, each node's contet will go in corresponding
-    /// iovec struct in iovec array.
+    /// It uses writev underneath, each node's content will go in corresponding
+    /// iovec struct in array of iovecs.
     /// # Example
     /// ```ignore
     /// use native::io::net::TcpStream;
