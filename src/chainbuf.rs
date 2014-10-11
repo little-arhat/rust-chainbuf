@@ -591,14 +591,15 @@ impl Chain {
                     Some(nd) => { nd }
                     None => { break }
                 };
-                if node.size() > size {
-                    node.start += size;
-                    self.length -= size;
+                if node.size() > msize {
+                    node.start += msize;
+                    self.length -= msize;
                     break;
                 }
             }
             // infailable
             let node = self.head.pop_front().unwrap();
+            self.length -= node.size();
             msize -= node.size();
         }
     }
