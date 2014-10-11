@@ -1,12 +1,13 @@
 extern crate chainbuf;
 extern crate native;
+extern crate libc;
 
 #[cfg(test)]
 mod test {
     use chainbuf::Chain;
 
-    //use libc;
     use std::os;
+    use libc;
     use native::io::FileDesc;
 
     use std::rand::{task_rng, Rng};
@@ -39,6 +40,6 @@ mod test {
         assert_eq!(write_res as uint, cl);
         assert_eq!(read_res.ok().unwrap(), write_res as uint);
         assert_eq!(buf.as_slice(), read_buf.as_slice());
-
+        unsafe { libc::close(writer); }
     }
 }
