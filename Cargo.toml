@@ -9,6 +9,14 @@ name = "chainbuf"
 path = "src/lib.rs"
 doctest = true
 
+[features]
+default = ["nix"]
+
+[dependencies.nix]
+git = "https://github.com/carllerche/nix-rust"
+optional = true
+
+default-features = true
 
 [profile.dev]
 opt-level = 0

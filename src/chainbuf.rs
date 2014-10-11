@@ -1,9 +1,4 @@
 
-
-use {uio};
-
-use libc;
-
 use std::cmp;
 use std::str;
 use std::mem;
@@ -14,9 +9,12 @@ use collections::dlist::DList;
 use collections::Deque;
 use collections::slice::bytes;
 
+#[cfg(feature="nix")] use nix::fcntl::Fd;
+#[cfg(feature="nix")] use nix::errno::{SysResult};
+#[cfg(feature="nix")] use nix::unistd::{writev, Iovec};
+
+
 pub static CHB_MIN_SIZE:uint = 32u;
-
-
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
@@ -715,10 +713,8 @@ impl Chain {
     /// let written = chain.write_to_fd(stream.fd(), None, None);
     /// println!("Written: {}", written);
     /// ```
-    #[cfg(unix)]
-    pub fn write_to_fd(&mut self, fd: libc::c_int, size:Option<uint>, nodes:Option<uint>) -> libc::ssize_t {
-        // TODO: use uint for fd and i32 as return type?
-        // TODO: use IoResult?
+    #[cfg(feature = "nix")]
+    pub fn write_to_fd(&mut self, fd: Fd, size:Option<uint>, nodes:Option<uint>) -> SysResult<uint> {
         let max_size = if size.is_some() { size.unwrap() } else { self.len() };
         let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
         // XXX: want to allocate this on stack, though
@@ -726,17 +722,18 @@ impl Chain {
         let mut towrite = 0;
         for n in self.head.iter().take(max_nodes) {
             let ns = n.size();
-            v.push(uio::iovec::from_slice(n.get_data_from_start(ns)));
+            v.push(Iovec::from_slice(n.get_data_from_start(ns)));
             towrite += ns;
             if towrite >= max_size {
                 break;
             }
         }
-        let wb = uio::writev(fd, v.as_slice());
-        if wb >= 0 {
-            self.drain(wb as uint);
+
+        let res = writev(fd, v.as_slice());
+        if res.is_ok() {
+            self.drain(res.ok().unwrap());
         }
-        wb
+        return res
     }
 
     // XXX: private

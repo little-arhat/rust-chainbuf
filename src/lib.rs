@@ -16,12 +16,14 @@
 #[cfg(test)] extern crate test;
 
 extern crate collections;
-extern crate libc;
+
+// Exetrnal dependencies
+#[cfg(feature="nix")] extern crate nix;
 
 pub use chainbuf::Chain;
+
 // XXX: for tests only, to remove, probably.
 pub use chainbuf::CHB_MIN_SIZE;
 
 // internal
 mod chainbuf;
-mod uio;
