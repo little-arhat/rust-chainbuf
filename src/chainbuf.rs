@@ -959,3 +959,33 @@ impl DataHolder {
         self.data.as_mut_slice().slice_mut(offset, offset + size)
     }
 }
+
+// XXX: wip
+// TODO: trait for mutable/immutable dataholders
+// subtyping?
+
+/// Dataholder as wrapper over slice.
+#[allow(dead_code)]
+struct DataHolderMemwrp<'a> {
+    data: &'a [u8]
+}
+
+#[allow(dead_code)]
+impl <'a>DataHolderMemwrp<'a> {
+    fn new(data: &[u8]) -> DataHolderMemwrp {
+        DataHolderMemwrp {
+            data: data
+        }
+    }
+
+    #[inline]
+    fn is_readonly_type(&self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn get_data(&self, offset: uint, size: uint) -> &[u8] {
+        self.data.slice(offset, offset + size)
+    }
+
+}
