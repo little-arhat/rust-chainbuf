@@ -9,6 +9,7 @@ use collections::dlist::DList;
 use collections::Deque;
 use collections::slice::bytes;
 
+// Put these in other module and extend Chain
 #[cfg(feature="nix")] use nix::fcntl::Fd;
 #[cfg(feature="nix")] use nix::errno::{SysResult};
 #[cfg(feature="nix")] use nix::unistd::{writev, Iovec};
@@ -89,25 +90,25 @@ fn find_overlap<U:Eq, T:Iterator<U> + Clone + Copy>(large: T, short: T) -> uint 
 /// offsets and a reference counted pointer to DataHolder. DataHolders can be
 /// shared across different chains, so for mutation new nodes and data holders
 /// are created (as in Copy-On-Write).
-pub struct Chain {
-    head: DList<Node>,
+pub struct Chain<'src> {
+    head: DList<Node<'src>>,
     length: uint
 }
 
-struct NodeAtPosInfoMut<'a> {
-    node: &'a mut Node, // link to node
+struct NodeAtPosInfoMut<'a, 'src> {
+    node: &'a mut Node<'src>, // link to node
     pos: uint, // position of node in chain
     offset: uint // offset inside node
 }
 
-struct NodeAtPosInfo<'a> {
-    node: &'a Node, // link to node
+struct NodeAtPosInfo<'a, 'src> {
+    node: &'a Node<'src>, // link to node
     pos: uint, // position of node in chain
     offset: uint // offset inside node
 }
 
 
-impl Chain {
+impl<'src> Chain<'src> {
     /// Creates new, empty chainbuf.
     /// Chainbuf will not allocate any nodes until something are
     /// pushed onto it.
@@ -116,7 +117,7 @@ impl Chain {
     /// use chainbuf::Chain;
     /// let mut chain = Chain::new();
     /// ```
-    pub fn new() -> Chain {
+    pub fn new() -> Chain<'src> {
         Chain{
             head: DList::new(),
             length: 0
@@ -133,7 +134,7 @@ impl Chain {
     /// println!("{}", chain2.len()); // should print 10
     /// // println!("{}", chain1.len()); // should produce error `use of moved value`
     /// ```
-    pub fn from_foreign(src: Chain) -> Chain {
+    pub fn from_foreign(src: Chain) -> Chain<'src> {
         let mut ch = Chain::new();
         ch.concat(src);
         ch
@@ -160,7 +161,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
             Some(nd) => {
-                (nd.room() < size) || nd.has_readonly_data_holder()
+                (nd.room() < size) || nd.holds_readonly()
             }
             None => {
                 true
@@ -169,7 +170,7 @@ impl Chain {
         // We either not the only owner of DH or don't have enough room
         if should_create {
             let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
-            let node = Node::new(DataHolder::new(nsize));
+            let node = Node::with_size(nsize);
             self.add_node_tail(node);
         }
         // infailable: added node above
@@ -179,7 +180,7 @@ impl Chain {
         {
             let node_end = node.end;
             // we should be sole owner of data holder inside node here
-            let dh = rc::get_mut(&mut node.dh).unwrap();
+            let dh = node.dh.holder_mut().unwrap();
             dh.fill_from(node_end, data);
         }
         node.end += size;
@@ -194,7 +195,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.front() {
             Some(nd) => {
-                size > nd.start || nd.has_readonly_data_holder()
+                size > nd.start || nd.holds_readonly()
             }
             None => {
                 true
@@ -202,7 +203,7 @@ impl Chain {
         };
         if should_create {
             let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
-            let mut node = Node::new(DataHolder::new(nsize)); // Box<Node>
+            let mut node = Node::with_size(nsize);
             let r = node.room();
             node.start = r;
             node.end = r;
@@ -212,7 +213,7 @@ impl Chain {
         let node = self.head.front_mut().unwrap();
         {
             let node_start = node.start;
-            let dh = rc::get_mut(&mut node.dh).unwrap();
+            let dh = node.dh.holder_mut().unwrap();
             dh.fill_from(node_start - size, data);
         }
         node.start -= size;
@@ -252,7 +253,7 @@ impl Chain {
             let node = self.head.front().unwrap();
             return Some(node.get_data_from_start(size));
         }
-        let mut newn = Node::new(DataHolder::new(size));
+        let mut newn = Node::with_size(size);
 
         let mut_self: &mut Chain;
         unsafe { mut_self = mem::transmute(self); }
@@ -267,7 +268,7 @@ impl Chain {
                     {
                         let node_end = newn.end;
                         // we just created new data holder, so we have unique ownership
-                        let dh = rc::get_mut(&mut newn.dh).unwrap();
+                        let dh = newn.dh.holder_mut().unwrap();
                         dh.fill_from(node_end,
                                      node.get_data_from_start(csize));
                     }
@@ -526,7 +527,7 @@ impl Chain {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
             Some(nd) => {
-                (nd.room() < size) || nd.has_readonly_data_holder()
+                (nd.room() < size) || nd.holds_readonly()
             }
             None => {
                 true
@@ -535,12 +536,12 @@ impl Chain {
         // We either not the only owner of DH or don't have enough room
         if should_create {
             let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
-            let node = Node::new(DataHolder::new(nsize));
+            let node = Node::with_size(nsize);
             self.add_node_tail(node);
         }
         // infailable: have node, or have added it above
         let node = self.head.back_mut().unwrap();
-        let dh = rc::get_mut(&mut node.dh).unwrap();
+        let dh = node.dh.holder_mut().unwrap();
         dh.get_data_mut(node.end, size)
     }
 
@@ -634,7 +635,7 @@ impl Chain {
                     find_overlap(node_data.iter().rev(),
                                  work_needle.iter().rev())
                 } else {
-                    // Otherwase, we're searching for suffix of node_data
+                    // Otherwase, we'srce searching for suffix of node_data
                     // that equal to some prefix of the needle
                     find_overlap(work_needle.iter(),
                                  node_data.iter())
@@ -819,7 +820,7 @@ impl Chain {
 
 /// Chains are equal if they content are equal.
 /// Memory layout is not important.
-impl PartialEq for Chain {
+impl<'src> PartialEq for Chain<'src> {
     fn eq(&self, other: &Chain) -> bool {
         if self.len() != other.len() {
             return false;
@@ -862,15 +863,21 @@ impl PartialEq for Chain {
 
 /// Node of chain buffer.
 /// Owned by Chain.
-struct Node {
-    dh: Rc<DataHolder>,
+struct Node<'src> {
+    dh: DataHolder<'src>,
     start: uint,
     end: uint
 }
 
-impl Node {
+impl<'src> Node<'src> {
     #[inline]
-    fn new(dh: Rc<DataHolder>) -> Node {
+    /// Creates new node with MemoryBuffer of *size* bytes as dataholder
+    fn with_size(size: uint) -> Node<'src> {
+        Node::with_data_holder(MemoryBuffer::new(size))
+    }
+
+    #[inline]
+    fn with_data_holder(dh: DataHolder) -> Node<'src> {
         Node {
             dh: dh,
             start: 0,
@@ -885,60 +892,148 @@ impl Node {
 
     #[inline]
     fn room(&self) -> uint {
-        self.dh.size - self.end
+        self.dh.holder().size() - self.end
     }
 
     #[inline]
-    fn has_readonly_data_holder(&self) -> bool {
-        !rc::is_unique(&self.dh) || self.dh.is_readonly_type()
+    fn holds_readonly(&self) -> bool {
+        self.dh.is_readonly()
     }
 
     #[inline]
     fn get_data_from_start(&self, size:uint) -> &[u8] {
-        self.dh.get_data(self.start, size)
+        self.dh.holder().get_data(self.start, size)
     }
 
     #[inline]
     fn get_data_from(&self, offs: uint, size: uint) -> &[u8] {
-        self.dh.get_data(self.start + offs, size)
+        self.dh.holder().get_data(self.start + offs, size)
     }
 }
 
-impl Clone for Node {
-    fn clone(&self) -> Node {
-        let mut newn = Node::new(self.dh.clone());
+impl<'src> Clone for Node<'src> {
+    #[inline]
+    fn clone(&self) -> Node<'src> {
+        let mut newn = Node::with_data_holder(self.dh.clone());
         newn.start = self.start;
         newn.end = self.end;
         newn
     }
 }
 
+/// Trait representing immutable data holders: mmap, mem wrapper, enc.
+trait ImmutableDataHolder {
+    /// Returns *size* bytes from dataholder starting from *offset*.
+    fn get_data(&self, offset: uint, size: uint) -> &[u8];
+    /// Return size of dataholder.
+    fn size(&self) -> uint;
+}
+
+/// Trait representing _possible_ mutable data holders.
+trait MutableDataHolder : ImmutableDataHolder {
+    /// Fills buffer from offset *dst_offs* by copying data from supplied
+    /// buffer *src*.
+    fn fill_from(&mut self, dst_offs: uint, src: &[u8]);
+
+    /// Returns mutable slice pointing to *size* bytes inside dataholder
+    /// starting from *offset*.
+    fn get_data_mut(&mut self, offset: uint, size: uint) -> &mut [u8];
+
+    /// Upcast &MutableDataHolder to &ImmutableDataHolder
+    // XXX: rust doesn't support upcasting to supertrait yet
+    // https://github.com/rust-lang/rust/issues/5665
+    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder { self as &ImmutableDataHolder }
+}
+
+/// DataHolder type.
+enum DataHolder<'src> {
+    // XXX: Rc over Box is double indirection, because Rc internally is a Box
+    // itself. However, Rc is not implemented for DST, so we can not put Trait
+    // inside. And we can not implement our version of Rc because of this bug:
+    // https://github.com/rust-lang/rust/issues/17959
+    Mutable(Rc<Box<MutableDataHolder + 'src>>),
+    Immutable(Rc<Box<ImmutableDataHolder + 'src>>)
+}
+
+impl<'src> DataHolder<'src> {
+    #[inline]
+    fn holder_mut(&mut self) -> Option<&mut MutableDataHolder> {
+        match self {
+            &Mutable(ref mut rcbdh) => {
+                if let Some(bdh) = rc::get_mut(rcbdh) {
+                    Some(&mut **bdh)
+                } else {
+                    None
+                }
+            }
+            &Immutable(_) => { None }
+        }
+    }
+
+    #[inline]
+    fn holder(&self) -> &ImmutableDataHolder {
+        match self {
+            &Mutable(ref mbdh) => {
+                (&***mbdh).as_immut()
+            }
+            &Immutable(ref imbdh) => {
+                & ***imbdh
+            }
+        }
+    }
+
+    #[inline]
+    fn is_readonly(&self) -> bool {
+        match self {
+            &Mutable(ref rcbdh) => {
+                !rc::is_unique(rcbdh)
+            }
+            &Immutable(_) => { true }
+        }
+    }
+}
+
+impl<'src> Clone for DataHolder<'src> {
+    #[inline]
+    fn clone(&self) -> DataHolder<'src> {
+        match self {
+            &Mutable(ref rcbdh) => { Mutable(rcbdh.clone()) }
+            &Immutable(ref rcbdh) => { Immutable(rcbdh.clone()) }
+        }
+    }
+}
+
 /// Refcounted data holder
-/// TODO: can be shared among different chains
-/// TODO: implement other storages: shmem, mmap
-struct DataHolder{
+// TODO: implement other storages: shmem, mmap
+struct MemoryBuffer{
     size: uint,
     data: Vec<u8>
 }
 
-impl DataHolder {
+impl MemoryBuffer {
     #[inline]
-    fn new(size: uint) -> Rc<DataHolder> {
-        Rc::new(DataHolder {
+    fn new<'src>(size: uint) -> DataHolder<'src> {
+        Mutable(Rc::new(box MemoryBuffer {
             size: size,
             data: Vec::from_elem(size, 0)
-        })
+        } as Box<MutableDataHolder>))
+    }
+}
+
+impl ImmutableDataHolder for MemoryBuffer {
+    #[inline]
+    fn get_data(&self, offset: uint, size: uint) -> &[u8] {
+        self.data.slice(offset, offset + size)
     }
 
-    /// Indicates whether this type of dataholder immutable or not.
     #[inline]
-    fn is_readonly_type(&self) -> bool {
-        false
+    fn size(&self) -> uint {
+        self.size
     }
+}
 
+impl MutableDataHolder for MemoryBuffer {
     #[inline]
-    /// Fills buffer from offset *dst_offs* by copying data from supplied
-    /// buffer *src*.
     fn fill_from(&mut self, dst_offs: uint, src: &[u8]) {
         let len = src.len();
         let sd = self.data.as_mut_slice().slice_mut(dst_offs,
@@ -950,42 +1045,35 @@ impl DataHolder {
     }
 
     #[inline]
-    fn get_data(&self, offset: uint, size: uint) -> &[u8] {
-        self.data.slice(offset, offset + size)
-    }
-
-    #[inline]
     fn get_data_mut(&mut self, offset: uint, size: uint) -> &mut [u8] {
         self.data.as_mut_slice().slice_mut(offset, offset + size)
     }
 }
 
-// XXX: wip
-// TODO: trait for mutable/immutable dataholders
-// subtyping?
 
-/// Dataholder as wrapper over slice.
 #[allow(dead_code)]
-struct DataHolderMemwrp<'a> {
+/// Dataholder as wrapper over some unowned slice.
+struct MemoryWrapper<'a> {
     data: &'a [u8]
 }
 
 #[allow(dead_code)]
-impl <'a>DataHolderMemwrp<'a> {
-    fn new(data: &[u8]) -> DataHolderMemwrp {
-        DataHolderMemwrp {
+impl <'a>MemoryWrapper<'a> {
+    fn new<'src>(data: &[u8]) -> DataHolder<'src> {
+        Immutable(Rc::new(box MemoryWrapper{
             data: data
-        }
+        } as Box<ImmutableDataHolder>))
     }
+}
 
-    #[inline]
-    fn is_readonly_type(&self) -> bool {
-        true
-    }
-
+impl<'a> ImmutableDataHolder for MemoryWrapper<'a> {
     #[inline]
     fn get_data(&self, offset: uint, size: uint) -> &[u8] {
         self.data.slice(offset, offset + size)
     }
 
+    #[inline]
+    fn size(&self) -> uint {
+        self.data.len()
+    }
 }
