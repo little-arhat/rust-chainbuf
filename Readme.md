@@ -5,7 +5,7 @@ Chained buffer of contigious byte chunks.
 
 # Simple usage
 
-```
+```rust
 use chainbuf::Chain;
 let mut chain = Chain::new();
 chain.append_bytes("helloworld".as_bytes());
