@@ -818,7 +818,7 @@ impl<'src> Chain<'src> {
     }
 }
 
-/// Chains are equal if they content are equal.
+/// Chains are considered equal iff they have same content inside.
 /// Memory layout is not important.
 impl<'src> PartialEq for Chain<'src> {
     fn eq(&self, other: &Chain) -> bool {
