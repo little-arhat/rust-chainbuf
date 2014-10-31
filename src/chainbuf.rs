@@ -1039,7 +1039,7 @@ impl MutableDataHolder for MemoryBuffer {
         let sd = self.data.as_mut_slice().slice_mut(dst_offs,
                                                     dst_offs + len);
         if len > sd.len() {
-            fail!("copy_data_from: source larger than destination");
+            panic!("copy_data_from: source larger than destination");
         }
         bytes::copy_memory(sd, src);
     }

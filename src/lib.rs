@@ -2,7 +2,7 @@
 #![comment = "Fast chained buffers"]
 #![license = "MIT"]
 
-#![deny(missing_doc)]
+#![deny(missing_docs)]
 #![deny(warnings)]
 
 #![feature(if_let)]
