@@ -94,13 +94,13 @@ pub struct Chain<'src> {
     length: uint
 }
 
-struct NodeAtPosInfoMut<'a, 'src> {
+struct NodeAtPosInfoMut<'a, 'src:'a> {
     node: &'a mut Node<'src>, // link to node
     pos: uint, // position of node in chain
     offset: uint // offset inside node
 }
 
-struct NodeAtPosInfo<'a, 'src> {
+struct NodeAtPosInfo<'a, 'src:'a> {
     node: &'a Node<'src>, // link to node
     pos: uint, // position of node in chain
     offset: uint // offset inside node
@@ -133,7 +133,7 @@ impl<'src> Chain<'src> {
     /// println!("{}", chain2.len()); // should print 10
     /// // println!("{}", chain1.len()); // should produce error `use of moved value`
     /// ```
-    pub fn from_foreign(src: Chain) -> Chain<'src> {
+    pub fn from_foreign(src: Chain<'src>) -> Chain<'src> {
         let mut ch = Chain::new();
         ch.concat(src);
         ch
@@ -300,7 +300,7 @@ impl<'src> Chain<'src> {
     /// assert!(res.is_some());
     /// assert_eq!(res.unwrap(), "llow".as_bytes());
     /// ```
-    pub fn pullup_from(&self, offs: uint, size: uint) -> Option<&[u8]> {
+    pub fn pullup_from(&'src self, offs: uint, size: uint) -> Option<&[u8]> {
         if (offs >= self.len()) || (size == 0) {
             return None;
         }
@@ -316,19 +316,26 @@ impl<'src> Chain<'src> {
         // contigious region of memory.
         // We need mutable reference to self for this, so once again use
         // std::mem::transmute:
-        let mut_self: &mut Chain;
-        unsafe { mut_self = mem::transmute(self); };
         let mut tmp = Chain::new();
-        tmp.move_from(mut_self, offs);
+        {
+            let mut_self: &mut Chain;
+            unsafe { mut_self = mem::transmute(self); };
+            tmp.move_from(mut_self, offs);
+        }
         // Run pullup to be sure, that we have dataholder that contains
         // requested number of bytes in contigious memory
-        let _ = mut_self.pullup(size);
-        tmp.move_all_from(mut_self);
-        mut_self.concat(tmp);
+        let _ = self.pullup(size);
+        {
+            let mut_self: &mut Chain;
+            unsafe { mut_self = mem::transmute(self); };
+            tmp.move_all_from(mut_self);
+            // Here we have emtpy mut_self
+            mut_self.concat(tmp);
+        }
 
         // Now we can be sure that requested data fits inside one node, so
         // we recurse into itself to take Fast Path.
-        return mut_self.pullup_from(offs, size);
+        return self.pullup_from(offs, size);
     }
 
     /// Finds first occurence of *needle* inside chain and returns data
@@ -394,7 +401,7 @@ impl<'src> Chain<'src> {
     /// chain1.concat(chain2);
     /// assert_eq!(chain1.pullup(10).unwrap(), "helloworld".as_bytes());
     /// ```
-    pub fn concat(&mut self, src: Chain) {
+    pub fn concat(&mut self, src: Chain<'src>) {
         self.length += src.length;
         self.head.append(src.head);
         // No need to cleanup `src`, because it has moved and cannot be used
@@ -430,7 +437,7 @@ impl<'src> Chain<'src> {
     /// chain1.append(&chain2);
     /// assert_eq!(chain1.len(), chain2.len());
     /// ```
-    pub fn append(&mut self, src: &Chain) {
+    pub fn append(&mut self, src: &Chain<'src>) {
         // XXX: chb_copy
         for node in src.head.iter() {
             self.add_node_tail(node.clone());
@@ -450,7 +457,7 @@ impl<'src> Chain<'src> {
     /// let moved_more = chain2.move_from(&mut chain1, 10);
     /// assert_eq!(moved_more, 7);
     /// ```
-    pub fn move_from(&mut self, src: &mut Chain, size: uint) -> uint {
+    pub fn move_from<'a>(&mut self, src: &'a mut Chain<'src>, size: uint) -> uint {
         if size == 0 {
             return 0;
         }
@@ -502,7 +509,7 @@ impl<'src> Chain<'src> {
     /// assert_eq!(chain1.len(), 0);
     /// assert_eq!(chain2.len(), 10);
     /// ```
-    pub fn move_all_from(&mut self, src: &mut Chain) {
+    pub fn move_all_from(&mut self, src: &mut Chain<'src>) {
         self.length += src.length;
         let sh = mem::replace(&mut src.head, DList::new());
         self.head.append(sh);
@@ -663,7 +670,7 @@ impl<'src> Chain<'src> {
     /// chain.append_bytes("helloworld".as_bytes());
     /// assert_eq!(chain.copy_bytes_from(2, 2), "ll".as_bytes().to_vec());
     /// ```
-    pub fn copy_bytes_from(&self, offs: uint, size: uint) -> Vec<u8> {
+    pub fn copy_bytes_from(&'src self, offs: uint, size: uint) -> Vec<u8> {
         if offs > self.len() {
             return Vec::new();
         }
@@ -739,7 +746,7 @@ impl<'src> Chain<'src> {
 
     // XXX: private
     // XXX: horrible code duplication with only difference in `mut` :(
-    fn node_at_pos_mut<'a>(&'a mut self, pos: uint) -> Option<NodeAtPosInfoMut> {
+    fn node_at_pos_mut<'a>(&'a mut self, pos: uint) -> Option<NodeAtPosInfoMut<'a, 'src>> {
         if (pos << 1) > self.len() {
             // Find from tail
             let mut toff = self.len(); // tail offset
@@ -772,7 +779,7 @@ impl<'src> Chain<'src> {
         None
     }
 
-    fn node_at_pos<'a>(&'a self, pos: uint) -> Option<NodeAtPosInfo> {
+    fn node_at_pos<'a>(&'a self, pos: uint) -> Option<NodeAtPosInfo<'a, 'src>> {
         if (pos << 1) > self.len() {
             // Find from tail
             let mut toff = self.len(); // tail offset
@@ -806,12 +813,12 @@ impl<'src> Chain<'src> {
     }
 
 
-    fn add_node_tail(&mut self, node: Node) {
+    fn add_node_tail(&mut self, node: Node<'src>) {
         self.length += node.size();
         self.head.push(node);
     }
 
-    fn add_node_head(&mut self, node: Node) {
+    fn add_node_head(&mut self, node: Node<'src>) {
         self.length += node.size();
         self.head.push_front(node);
     }
@@ -876,7 +883,7 @@ impl<'src> Node<'src> {
     }
 
     #[inline]
-    fn with_data_holder(dh: DataHolder) -> Node<'src> {
+    fn with_data_holder(dh: DataHolder<'src>) -> Node<'src> {
         Node {
             dh: dh,
             start: 0,
@@ -1058,7 +1065,7 @@ struct MemoryWrapper<'a> {
 
 #[allow(dead_code)]
 impl <'a>MemoryWrapper<'a> {
-    fn new<'src>(data: &[u8]) -> DataHolder<'src> {
+    fn new<'src>(data: &'src [u8]) -> DataHolder<'src> {
         Immutable(Rc::new(box MemoryWrapper{
             data: data
         } as Box<ImmutableDataHolder>))
