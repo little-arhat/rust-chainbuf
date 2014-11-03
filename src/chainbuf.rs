@@ -6,7 +6,6 @@ use std::mem;
 use std::rc::{mod, Rc};
 
 use collections::dlist::DList;
-use collections::Deque;
 use collections::slice::bytes;
 
 // Put these in other module and extend Chain
@@ -20,7 +19,7 @@ pub static CHB_MIN_SIZE:uint = 32u;
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
 // XXX: if we had access to DList impl, we could do this more effective
-fn move_n<TT, T: Deque<TT>>(src: &mut T, dst: &mut T, n: uint) {
+fn move_n<T>(src: &mut DList<T>, dst: &mut DList<T>, n: uint) {
     let mut nc = n;
     while nc > 0 {
         if let Some(el) = src.pop_front() {
