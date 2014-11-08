@@ -23,7 +23,7 @@ fn move_n<T>(src: &mut DList<T>, dst: &mut DList<T>, n: uint) {
     let mut nc = n;
     while nc > 0 {
         if let Some(el) = src.pop_front() {
-            dst.push(el);
+            dst.push_back(el);
             nc -= 1;
         } else {
             break;
@@ -815,7 +815,7 @@ impl<'src> Chain<'src> {
 
     fn add_node_tail(&mut self, node: Node<'src>) {
         self.length += node.size();
-        self.head.push(node);
+        self.head.push_back(node);
     }
 
     fn add_node_head(&mut self, node: Node<'src>) {
