@@ -26,6 +26,15 @@ mod test {
     }
 
     #[test]
+    fn test_append_slice_changes_length() {
+        let mut chain = Chain::new();
+        let source = "HelloWorld".as_bytes();
+        let ls = source.len();
+        chain.append_slice(source);
+        assert_eq!(chain.len(), ls);
+    }
+
+    #[test]
     fn test_from_foreign_moves_all_data() {
         let mut orig = Chain::new();
         orig.append_bytes("HelloWorld".as_bytes());

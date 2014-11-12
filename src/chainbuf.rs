@@ -155,6 +155,13 @@ impl<'src> Chain<'src> {
     /// Copies bytes from a slice, and appends them to the end of chain,
     /// creating new node, if data holder in last node does not have enough
     /// room for data or shared across several chains.
+    /// # Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// chain.append_bytes("helloworld".as_bytes());
+    /// println!("{}", chain.len()); // should print 10
+    /// ```
     pub fn append_bytes(&mut self, data: &[u8]) {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
@@ -216,6 +223,23 @@ impl<'src> Chain<'src> {
             dh.fill_from(node_start - size, data);
         }
         node.start -= size;
+        self.length += size;
+    }
+
+    /// Appends unowned *slice* to the chain without copy.
+    /// Chain lifetime became bound to one of the slice.
+    /// Example
+    /// ```
+    /// use chainbuf::Chain;
+    /// let mut chain = Chain::new();
+    /// let s = "HelloWorld";
+    /// chain.append_slice(s.as_bytes());
+    /// println!("{}", chain.len()); // should print 10
+    /// ```
+    pub fn append_slice(&mut self, data: &'src [u8]) {
+        let size = data.len();
+        let node = Node::with_data_holder(MemoryWrapper::new(data));
+        self.add_node_tail(node);
         self.length += size;
     }
 
@@ -1057,13 +1081,11 @@ impl MutableDataHolder for MemoryBuffer {
 }
 
 
-#[allow(dead_code)]
 /// Dataholder as wrapper over some unowned slice.
 struct MemoryWrapper<'a> {
     data: &'a [u8]
 }
 
-#[allow(dead_code)]
 impl <'a>MemoryWrapper<'a> {
     fn new<'src>(data: &'src [u8]) -> DataHolder<'src> {
         Immutable(Rc::new(box MemoryWrapper{
