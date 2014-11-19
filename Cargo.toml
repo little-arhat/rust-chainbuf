@@ -13,8 +13,7 @@ doctest = true
 default = ["nix"]
 
 [dependencies.nix]
-git = "https://github.com/little-arhat/nix-rust"
-branch = "compat-namespaced-enums"
+git = "https://github.com/carllerche/nix-rust"
 optional = true
 
 default-features = true
