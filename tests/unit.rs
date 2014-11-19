@@ -262,7 +262,7 @@ mod test {
     fn test_to_utf8_str_returns_none_on_non_utf8() {
         let mut chain = Chain::new();
         let b = [0xf0_u8, 0xff_u8, 0xff_u8, 0x10_u8];
-        chain.append_bytes(b);
+        chain.append_bytes(b.as_slice());
         let res = chain.to_utf8_str();
         assert!(res.is_none());
     }
@@ -303,7 +303,7 @@ mod test {
             let b = s.as_bytes();
             chain.append_bytes(b);
         }
-        let res = chain.find(needle);
+        let res = chain.find(needle.as_slice());
         assert!(res.is_none());
     }
 
