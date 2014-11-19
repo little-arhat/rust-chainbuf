@@ -1,4 +1,3 @@
-
 use std::cmp;
 use std::str;
 use std::mem;
@@ -989,24 +988,24 @@ impl<'src> DataHolder<'src> {
     #[inline]
     fn holder_mut(&mut self) -> Option<&mut MutableDataHolder> {
         match self {
-            &Mutable(ref mut rcbdh) => {
+            &DataHolder::Mutable(ref mut rcbdh) => {
                 if let Some(bdh) = rc::get_mut(rcbdh) {
                     Some(&mut **bdh)
                 } else {
                     None
                 }
             }
-            &Immutable(_) => { None }
+            &DataHolder::Immutable(_) => { None }
         }
     }
 
     #[inline]
     fn holder(&self) -> &ImmutableDataHolder {
         match self {
-            &Mutable(ref mbdh) => {
+            &DataHolder::Mutable(ref mbdh) => {
                 (&***mbdh).as_immut()
             }
-            &Immutable(ref imbdh) => {
+            &DataHolder::Immutable(ref imbdh) => {
                 & ***imbdh
             }
         }
@@ -1015,10 +1014,10 @@ impl<'src> DataHolder<'src> {
     #[inline]
     fn is_readonly(&self) -> bool {
         match self {
-            &Mutable(ref rcbdh) => {
+            &DataHolder::Mutable(ref rcbdh) => {
                 !rc::is_unique(rcbdh)
             }
-            &Immutable(_) => { true }
+            &DataHolder::Immutable(_) => { true }
         }
     }
 }
@@ -1027,8 +1026,8 @@ impl<'src> Clone for DataHolder<'src> {
     #[inline]
     fn clone(&self) -> DataHolder<'src> {
         match self {
-            &Mutable(ref rcbdh) => { Mutable(rcbdh.clone()) }
-            &Immutable(ref rcbdh) => { Immutable(rcbdh.clone()) }
+            &DataHolder::Mutable(ref rcbdh) => { DataHolder::Mutable(rcbdh.clone()) }
+            &DataHolder::Immutable(ref rcbdh) => { DataHolder::Immutable(rcbdh.clone()) }
         }
     }
 }
@@ -1043,7 +1042,7 @@ struct MemoryBuffer{
 impl MemoryBuffer {
     #[inline]
     fn new<'src>(size: uint) -> DataHolder<'src> {
-        Mutable(Rc::new(box MemoryBuffer {
+        DataHolder::Mutable(Rc::new(box MemoryBuffer {
             size: size,
             data: Vec::from_elem(size, 0)
         } as Box<MutableDataHolder>))
@@ -1088,7 +1087,7 @@ struct MemoryWrapper<'a> {
 
 impl <'a>MemoryWrapper<'a> {
     fn new<'src>(data: &'src [u8]) -> DataHolder<'src> {
-        Immutable(Rc::new(box MemoryWrapper{
+        DataHolder::Immutable(Rc::new(box MemoryWrapper{
             data: data
         } as Box<ImmutableDataHolder>))
     }
