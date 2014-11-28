@@ -3,6 +3,11 @@
 name = "chainbuf"
 version = "0.0.1"
 authors = [ "Roma Sokolov <sokolov.r.v@gmail.com>" ]
+license = "MIT"
+description = "Fast chained buffers"
+repository = "https://github.com/little-arhat/rust-chainbuf"
+keywords = ["io", "datastructures", "data structures", "zero-copy"]
+
 
 [lib]
 name = "chainbuf"

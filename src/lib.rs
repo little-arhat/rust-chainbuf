@@ -1,6 +1,4 @@
 #![crate_name = "chainbuf"]
-#![comment = "Fast chained buffers"]
-#![license = "MIT"]
 
 #![deny(missing_docs)]
 #![deny(warnings)]
