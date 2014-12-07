@@ -236,10 +236,9 @@ impl<'src> Chain<'src> {
     /// println!("{}", chain.len()); // should print 10
     /// ```
     pub fn append_slice(&mut self, data: &'src [u8]) {
-        let size = data.len();
-        let node = Node::with_data_holder(MemoryWrapper::new(data));
+        let mut node = Node::with_data_holder(MemoryWrapper::new(data));
+        node.end = node.room();
         self.add_node_tail(node);
-        self.length += size;
     }
 
     /// Returns *size* bytes from the beginning of chain or None,

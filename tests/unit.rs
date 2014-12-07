@@ -35,6 +35,17 @@ mod test {
     }
 
     #[test]
+    fn test_appended_slice_can_be_pulled() {
+        let mut chain = Chain::new();
+        let source = "HelloWorld".as_bytes();
+        let ls = source.len();
+        chain.append_slice(source);
+        let pulled = chain.pullup(ls);
+        assert!(pulled.is_some());
+        assert_eq!(pulled.unwrap(), source);
+    }
+
+    #[test]
     fn test_from_foreign_moves_all_data() {
         let mut orig = Chain::new();
         orig.append_bytes("HelloWorld".as_bytes());
