@@ -4,6 +4,7 @@
 #![deny(warnings)]
 
 #![feature(if_let)]
+#![feature(unsafe_destructor)]
 
 //! The main crate for the Chainbuf library.
 //!
@@ -17,6 +18,7 @@ extern crate collections;
 
 // Exetrnal dependencies
 #[cfg(feature="nix")] extern crate nix;
+#[cfg(feature="nix")] extern crate libc;
 
 pub use chainbuf::Chain;
 

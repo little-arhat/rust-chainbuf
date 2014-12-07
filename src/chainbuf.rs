@@ -8,9 +8,16 @@ use collections::dlist::DList;
 use collections::slice::bytes;
 
 // Put these in other module and extend Chain
-#[cfg(feature="nix")] use nix::fcntl::Fd;
+#[cfg(feature="nix")] use nix::fcntl as nf;
 #[cfg(feature="nix")] use nix::errno::{SysResult};
-#[cfg(feature="nix")] use nix::unistd::{writev, Iovec};
+#[cfg(feature="nix")] use nix::unistd::{writev, Iovec, close};
+#[cfg(feature="nix")] use nix::sys::stat;
+#[cfg(feature="nix")] use nix::sys::mman;
+#[cfg(feature="nix")] use std::path::Path;
+#[cfg(feature="nix")] use std::io::FilePermission;
+#[cfg(feature="nix")] use std::num::from_i64;
+#[cfg(feature="nix")] use libc;
+#[cfg(feature="nix")] use std::raw::Slice as RawSlice;
 
 
 pub static CHB_MIN_SIZE:uint = 32u;
@@ -747,7 +754,7 @@ impl<'src> Chain<'src> {
     /// }
     /// ```
     #[cfg(feature = "nix")]
-    pub fn write_to_fd(&mut self, fd: Fd, size:Option<uint>, nodes:Option<uint>) -> SysResult<uint> {
+    pub fn write_to_fd(&mut self, fd: nf::Fd, size:Option<uint>, nodes:Option<uint>) -> SysResult<uint> {
         let max_size = if size.is_some() { size.unwrap() } else { self.len() };
         let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
         // XXX: want to allocate this on stack, though
@@ -767,6 +774,31 @@ impl<'src> Chain<'src> {
             self.drain(res.ok().unwrap());
         }
         return res
+    }
+
+    /// Appends file on *path* to chainbuf by memory mapping it.
+    /// File will be closed and unmapped when node freshly created
+    /// read-only node will be dropped.
+    /// # Example:
+    /// ```ignore
+    /// use chainbuf::Chain;
+    /// let path = std::path::Path::new("/tmp/path");
+    /// let mut chain = Chain::new();
+    /// chain.append_file(path);
+    /// println!("{}", chain.len());
+    /// assert!(chain.len() > 0);
+    /// ```
+    #[cfg(feature = "nix")]
+    pub fn append_file(&mut self, path: &Path) -> SysResult<()> {
+        let fd = try!(nf::open(path, nf::O_RDONLY, FilePermission::empty()));
+        let fdst = try!(stat::fstat(fd));
+        // XXX: fstat's st_size is signed, but in practice it shouldn't be
+        let size:uint = from_i64(fdst.st_size).unwrap();
+        let dh = try!(MmappedFile::new(fd, size));
+        let mut node = Node::with_data_holder(dh);
+        node.end = node.room();
+        self.add_node_tail(node);
+        return Ok(());
     }
 
     // XXX: private
@@ -1035,7 +1067,7 @@ impl<'src> Clone for DataHolder<'src> {
 }
 
 /// Refcounted data holder
-// TODO: implement other storages: shmem, mmap
+// TODO: implement other storages: shmem
 struct MemoryBuffer{
     size: uint,
     data: Vec<u8>
@@ -1104,5 +1136,55 @@ impl<'a> ImmutableDataHolder for MemoryWrapper<'a> {
     #[inline]
     fn size(&self) -> uint {
         self.data.len()
+    }
+}
+
+/// Dataholder as wrapper over mmaped file.
+#[cfg(feature="nix")]
+struct MmappedFile<'a> {
+    size: uint,
+    fd: nf::Fd,
+    addr: *const u8
+}
+
+impl<'a> MmappedFile<'a> {
+    fn new<'src>(fd:nf::Fd, size:uint) -> SysResult<DataHolder<'src>> {
+        let addr = try!(mman::mmap(0 as *mut libc::c_void,
+                                   size as u64, mman::PROT_READ,
+                                   mman::MAP_SHARED, fd, 0));
+
+        let dh = DataHolder::Immutable(Rc::new(box MmappedFile {
+            size: size,
+            fd: fd,
+            addr: addr as *const u8
+        } as Box<ImmutableDataHolder>));
+        Ok(dh)
+    }
+}
+
+#[unsafe_destructor]
+impl<'a> Drop for MmappedFile<'a> {
+    fn drop(&mut self) {
+        let munmap_res = mman::munmap(self.addr as *mut libc::c_void,
+                                      self.size as libc::size_t);
+        let close_res = close(self.fd);
+        assert!(munmap_res.is_ok() && close_res.is_ok());
+    }
+}
+
+impl<'a> ImmutableDataHolder for MmappedFile<'a> {
+    #[inline]
+    fn get_data(&self, offset: uint, size: uint) -> &[u8] {
+        unsafe {
+            mem::transmute(RawSlice{
+                data:self.addr.offset(offset as int),
+                len: size
+            })
+        }
+    }
+
+    #[inline]
+    fn size(&self) -> uint {
+        self.size
     }
 }

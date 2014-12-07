@@ -47,7 +47,44 @@ mod test {
             let _ = close(writer);
             let _ = close(reader);
         }
+    }
 
+    #[cfg(feature="nix")]
+    mod test_append_file {
+        use chainbuf::Chain;
+        use nix::unistd::{close, write};
+        use nix::fcntl as nf;
+        use std::rand::{task_rng, Rng};
+        use std::io::{TempDir, USER_FILE};
+
+        #[test]
+        fn test_append_flie() {
+            let s:String = task_rng().gen_ascii_chars().take(1024).collect();
+            let v = s.into_bytes();
+            let tmpd_res = TempDir::new("chain-test");
+            assert!(tmpd_res.is_ok());
+            let tmpd = tmpd_res.ok().unwrap();
+            let mut p = tmpd.path().clone();
+            p.push("mmaped_file.map");
+            let open_res = nf::open(&p,
+                                    nf::O_CREAT | nf::O_RDWR | nf::O_TRUNC,
+                                    USER_FILE);
+            assert!(open_res.is_ok());
+            let fd = open_res.ok().unwrap();
+            let write_res = write(fd, v.as_slice());
+            assert!(write_res.is_ok());
+            let close_res = close(fd);
+            assert!(close_res.is_ok());
+            let written = write_res.ok().unwrap();
+            let mut chain = Chain::new();
+            let apfile_res = chain.append_file(&p);
+            assert!(apfile_res.is_ok());
+            assert_eq!(chain.len(), written);
+            let pulled = chain.pullup(written);
+            assert!(pulled.is_some());
+            let data = pulled.unwrap();
+            assert_eq!(data, v.as_slice());
+        }
     }
 
 }
