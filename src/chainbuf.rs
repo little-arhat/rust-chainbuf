@@ -716,7 +716,6 @@ impl<'src> Chain<'src> {
         return buf;
     }
 
-
     /// Writes content of chain to specified file descriptor *fd*. Amount of
     /// successfully written bytes are then drained out of the chain and
     /// returned.
@@ -729,19 +728,23 @@ impl<'src> Chain<'src> {
     /// It uses writev underneath, each node's content will go in corresponding
     /// iovec struct in array of iovecs.
     /// # Example
-    /// ```ignore
-    /// use native::io::net::TcpStream;
-    /// use std::rt::rtio;
+    /// ```
+    /// extern crate nix;
     /// use chainbuf::Chain;
-    /// let addr = rtio::SocketAddr{
-    ///     ip: rtio::Ipv4Addr(127, 0, 0, 1),
-    ///     port: 8989u16,
-    /// };
-    /// let mut chain = Chain::new();
-    /// chain.append_bytes("helloworld".as_bytes());
-    /// let mut stream = TcpStream::connect(addr, None).ok().unwrap();
-    /// let written = chain.write_to_fd(stream.fd(), None, None);
-    /// println!("Written: {}", written);
+    /// use nix::unistd::{pipe, close, read};
+    /// fn main() {
+    ///     let (reader, writer) = pipe().unwrap();
+    ///     let mut chain = Chain::new();
+    ///     let d = "HelloWorld".as_bytes();
+    ///     chain.append_bytes(d);
+    ///     let written = chain.write_to_fd(writer, None, None).ok().unwrap();
+    ///     close(writer);
+    ///     let mut read_buf = Vec::from_elem(written, 0u8);
+    ///     let read = read(reader, read_buf.as_mut_slice()).ok().unwrap();
+    ///     assert_eq!(read, written);
+    ///     assert_eq!(read_buf.as_slice(), d);
+    ///     close(reader);
+    /// }
     /// ```
     #[cfg(feature = "nix")]
     pub fn write_to_fd(&mut self, fd: Fd, size:Option<uint>, nodes:Option<uint>) -> SysResult<uint> {
