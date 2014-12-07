@@ -61,6 +61,13 @@ mod test {
     }
 
     #[test]
+    fn test_pullup_returns_none_when_too_much_data_requested() {
+        let mut chain = Chain::new();
+        chain.append_bytes("HelloWorld".as_bytes());
+        assert!(chain.pullup(chain.len() + 10).is_none());
+    }
+
+    #[test]
     fn test_pullup_returns_what_has_been_appended() {
         let mut chain = Chain::new();
         let s = "HelloWorld".as_bytes();
