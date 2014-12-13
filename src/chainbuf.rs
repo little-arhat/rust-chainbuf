@@ -47,32 +47,32 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<uint> {
     }
 }
 
-fn find_overlap<U:Eq, T:Iterator<U> + Clone + Copy>(large: T, short: T) -> uint {
-    let mut haystack_it = large;
-    let mut needle_it = short;
+fn find_overlap<U:Eq, T:Iterator<U> + Clone>(large: T, short: T) -> uint {
+    let mut haystack_it = large.clone();
+    let mut needle_it = short.clone();
     let mut matched = 0u;
-    let mut current_needle = needle_it;
+    let mut current_needle = needle_it.clone();
     loop {
         if let Some(b) = current_needle.next() {
             if let Some(h) = haystack_it.next() {
                 if b == h {
                     // save position of iter for backtracking
-                    needle_it = current_needle;
+                    needle_it = current_needle.clone();
                     current_needle = current_needle.clone();
                     matched += 1;
                 } else {
                     // match failed, if we have previous matches,
                     // restore iter
                     if matched > 0 {
-                        current_needle = needle_it;
+                        current_needle = needle_it.clone();
                     }
                     // restore haystack iter
-                    haystack_it = large;
+                    haystack_it = large.clone();
                     matched = 0;
                 }
             } else {
                 // haystack exhausted
-                haystack_it = large;
+                haystack_it = large.clone();
             }
         } else {
             break;
