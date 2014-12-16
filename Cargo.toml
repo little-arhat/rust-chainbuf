@@ -18,7 +18,8 @@ doctest = true
 default = ["nix"]
 
 [dependencies.nix]
-git = "https://github.com/carllerche/nix-rust"
+git = "https://github.com/little-arhat/nix-rust"
+branch = "compat-no-copy-for-bitflags"
 optional = true
 
 default-features = true
