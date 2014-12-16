@@ -2,6 +2,7 @@
 # Chainbuf
 [![Build Status](https://travis-ci.org/little-arhat/rust-chainbuf.svg?branch=master)](https://travis-ci.org/little-arhat/rust-chainbuf)
 
+
 Chained buffer of contigious byte chunks.
 
 # Simple usage
