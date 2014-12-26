@@ -282,7 +282,8 @@ mod test {
         let b = [0xf0_u8, 0xff_u8, 0xff_u8, 0x10_u8];
         chain.append_bytes(b.as_slice());
         let res = chain.to_utf8_str();
-        assert!(res.is_none());
+        assert!(res.is_some());
+        assert!(res.unwrap().is_err());
     }
 
     #[test]
@@ -292,7 +293,8 @@ mod test {
         chain.append_bytes(s.as_bytes());
         let res = chain.to_utf8_str();
         assert!(res.is_some());
-        assert_eq!(res.unwrap(), s.as_slice());
+        assert!(res.unwrap().is_ok());
+        assert_eq!(res.unwrap().ok().unwrap(), s.as_slice());
     }
 
     #[test]

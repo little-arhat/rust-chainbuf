@@ -1,5 +1,6 @@
 use std::cmp;
 use std::str;
+use std::str::Utf8Error;
 use std::mem;
 
 use std::rc::{mod, Rc};
@@ -410,11 +411,12 @@ impl<'src> Chain<'src> {
     /// chain.append_bytes("helloworld".as_bytes());
     /// let res = chain.to_utf8_str();
     /// assert!(res.is_some());
-    /// assert_eq!(res.unwrap(), "helloworld");
+    /// assert!(res.some().is_ok());
+    /// assert_eq!(res.unwrap().ok().unwrap(), "helloworld");
     /// ```
-    pub fn to_utf8_str(&self) -> Option<&str> {
+    pub fn to_utf8_str(&self) -> Option<Result<&str, Utf8Error>> {
         match self.pullup_all() {
-            Some(bytes) => { str::from_utf8(bytes) }
+            Some(bytes) => { Some(str::from_utf8(bytes)) }
             None => { None }
         }
     }
