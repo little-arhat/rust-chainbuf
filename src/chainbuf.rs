@@ -411,7 +411,7 @@ impl<'src> Chain<'src> {
     /// chain.append_bytes("helloworld".as_bytes());
     /// let res = chain.to_utf8_str();
     /// assert!(res.is_some());
-    /// assert!(res.some().is_ok());
+    /// assert!(res.unwrap().is_ok());
     /// assert_eq!(res.unwrap().ok().unwrap(), "helloworld");
     /// ```
     pub fn to_utf8_str(&self) -> Option<Result<&str, Utf8Error>> {
