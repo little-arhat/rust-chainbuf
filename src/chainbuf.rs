@@ -1,9 +1,10 @@
 use std::cmp;
 use std::str;
+use std::iter::{repeat};
 use std::str::Utf8Error;
 use std::mem;
 
-use std::rc::{mod, Rc};
+use std::rc::{self, Rc};
 
 use collections::dlist::DList;
 use collections::slice::bytes;
@@ -48,7 +49,7 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<uint> {
     }
 }
 
-fn find_overlap<U:Eq, T:Iterator<U> + Clone>(large: T, short: T) -> uint {
+fn find_overlap<U:Eq, T:Iterator<Item=U> + Clone>(large: T, short: T) -> uint {
     let mut haystack_it = large.clone();
     let mut needle_it = short.clone();
     let mut matched = 0u;
@@ -741,6 +742,7 @@ impl<'src> Chain<'src> {
     /// extern crate nix;
     /// use chainbuf::Chain;
     /// use nix::unistd::{pipe, close, read};
+    /// use std::iter::{repeat};
     /// fn main() {
     ///     let (reader, writer) = pipe().unwrap();
     ///     let mut chain = Chain::new();
@@ -748,7 +750,7 @@ impl<'src> Chain<'src> {
     ///     chain.append_bytes(d);
     ///     let written = chain.write_to_fd(writer, None, None).ok().unwrap();
     ///     close(writer);
-    ///     let mut read_buf = Vec::from_elem(written, 0u8);
+    ///     let mut read_buf = repeat(0u8).take(written).collect();
     ///     let read = read(reader, read_buf.as_mut_slice()).ok().unwrap();
     ///     assert_eq!(read, written);
     ///     assert_eq!(read_buf.as_slice(), d);
@@ -987,7 +989,7 @@ impl<'src> Clone for Node<'src> {
 }
 
 /// Trait representing immutable data holders: mmap, mem wrapper, enc.
-trait ImmutableDataHolder {
+trait ImmutableDataHolder for Sized? {
     /// Returns *size* bytes from dataholder starting from *offset*.
     fn get_data(&self, offset: uint, size: uint) -> &[u8];
     /// Return size of dataholder.
@@ -1007,7 +1009,7 @@ trait MutableDataHolder : ImmutableDataHolder {
     /// Upcast &MutableDataHolder to &ImmutableDataHolder
     // XXX: rust doesn't support upcasting to supertrait yet
     // https://github.com/rust-lang/rust/issues/5665
-    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder { self as &ImmutableDataHolder }
+    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder;
 }
 
 /// DataHolder type.
@@ -1056,6 +1058,7 @@ impl<'src> DataHolder<'src> {
             &DataHolder::Immutable(_) => { true }
         }
     }
+
 }
 
 impl<'src> Clone for DataHolder<'src> {
@@ -1080,7 +1083,7 @@ impl MemoryBuffer {
     fn new<'src>(size: uint) -> DataHolder<'src> {
         DataHolder::Mutable(Rc::new(box MemoryBuffer {
             size: size,
-            data: Vec::from_elem(size, 0)
+            data: repeat(0).take(size).collect()
         } as Box<MutableDataHolder>))
     }
 }
@@ -1113,6 +1116,8 @@ impl MutableDataHolder for MemoryBuffer {
     fn get_data_mut(&mut self, offset: uint, size: uint) -> &mut [u8] {
         self.data.as_mut_slice().slice_mut(offset, offset + size)
     }
+
+    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder { self }
 }
 
 

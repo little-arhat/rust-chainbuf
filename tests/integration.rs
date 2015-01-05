@@ -7,7 +7,8 @@ mod test {
     mod test_writev {
         use chainbuf::Chain;
         use nix::unistd::{pipe, close, read};
-        use std::rand::{task_rng, Rng};
+        use std::rand::{thread_rng, Rng};
+        use std::iter::{repeat};
 
         #[test]
         fn test_write_to_fd_works() {
@@ -17,7 +18,7 @@ mod test {
 
             let mut to_write = Vec::with_capacity(16 * 128);
             for _ in range(0u, 16) {
-                let s:String = task_rng().gen_ascii_chars().take(128).collect();
+                let s:String = thread_rng().gen_ascii_chars().take(128).collect();
                 let b = s.as_bytes();
                 chain.append_bytes(b);
                 to_write.extend(b.iter().map(|x| x.clone()));
@@ -37,7 +38,7 @@ mod test {
             assert_eq!(written, cl);
             // chain has been drained
             assert_eq!(chain.len(), 0);
-            let mut read_buf = Vec::from_elem(128 * 16, 0u8);
+            let mut read_buf:Vec<u8> = repeat(0u8).take(128 * 16).collect();
             let read_res = read(reader, read_buf.as_mut_slice());
             assert!(read_res.is_ok());
             let read = read_res.ok().unwrap() as uint;
@@ -54,12 +55,12 @@ mod test {
         use chainbuf::Chain;
         use nix::unistd::{close, write};
         use nix::fcntl as nf;
-        use std::rand::{task_rng, Rng};
+        use std::rand::{thread_rng, Rng};
         use std::io::{TempDir, USER_FILE};
 
         #[test]
         fn test_append_flie() {
-            let s:String = task_rng().gen_ascii_chars().take(1024).collect();
+            let s:String = thread_rng().gen_ascii_chars().take(1024).collect();
             let v = s.into_bytes();
             let tmpd_res = TempDir::new("chain-test");
             assert!(tmpd_res.is_ok());

@@ -5,7 +5,8 @@ extern crate chainbuf;
 #[cfg(test)]
 mod test {
     use chainbuf::{CHB_MIN_SIZE, Chain};
-    use std::rand::{task_rng, Rng};
+    use std::rand::{thread_rng, Rng};
+    use std::iter::{repeat};
 
     #[test]
     fn test_append_bytes_changes_length() {
@@ -97,7 +98,7 @@ mod test {
         let one_seq = 128u;
         let mut buf = Vec::new();
         while t > 0 {
-            let s:String = task_rng().gen_ascii_chars().take(one_seq).collect();
+            let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             buf.extend(b.iter().map(|x| x.clone()));
             chain.append_bytes(b);
@@ -206,7 +207,7 @@ mod test {
     fn test_move_from_move_on_node_edge() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
-        let s:String = task_rng().gen_ascii_chars().take(CHB_MIN_SIZE).collect();
+        let s:String = thread_rng().gen_ascii_chars().take(CHB_MIN_SIZE).collect();
         let sb = s.as_bytes();
         chain2.append_bytes(sb);
         chain2.append_bytes(sb);
@@ -243,7 +244,7 @@ mod test {
         let mut chain = Chain::new();
         chain.append_bytes("helloworld".as_bytes());
         let buf = chain.reserve(10);
-        let pat = Vec::from_elem(10, 0u8);
+        let pat:Vec<u8> = repeat(0u8).take(10).collect();
         assert_eq!(buf.as_slice(), pat.as_slice());
     }
 
@@ -289,7 +290,7 @@ mod test {
     #[test]
     fn test_to_utf8_returns_correct_string() {
         let mut chain = Chain::new();
-        let s:String = task_rng().gen_ascii_chars().take(CHB_MIN_SIZE * 4).collect();
+        let s:String = thread_rng().gen_ascii_chars().take(CHB_MIN_SIZE * 4).collect();
         chain.append_bytes(s.as_bytes());
         let res = chain.to_utf8_str();
         assert!(res.is_some());
@@ -319,7 +320,7 @@ mod test {
         let needle = [1u8, 2u8, 3u8];
         let one_seq = 128u;
         for _ in range(0u, 20) {
-            let s:String = task_rng().gen_ascii_chars().take(one_seq).collect();
+            let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             chain.append_bytes(b);
         }
@@ -333,8 +334,8 @@ mod test {
         let mut offs = 0;
         let needle = "the quick brown fox jumps over the lazy dog";
         for i in range(0u, 20) {
-            let mut int_rng = task_rng();
-            let s:String = task_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
+            let mut int_rng = thread_rng();
+            let s:String = thread_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
             let bytes = s.as_bytes();
 
             chain.append_bytes(bytes);
@@ -358,7 +359,7 @@ mod test {
         let mut t = total;
         let one_seq = 128u;
         while t > 0 {
-            let s:String = task_rng().gen_ascii_chars().take(one_seq).collect();
+            let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             chain1.append_bytes(b);
             chain2.append_bytes(b);
