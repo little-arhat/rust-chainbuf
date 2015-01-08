@@ -4,6 +4,10 @@
 #![deny(warnings)]
 
 #![feature(unsafe_destructor)]
+#![feature(box_syntax)]
+
+#![allow(staged_experimental)]
+#![allow(staged_unstable)]
 
 //! The main crate for the Chainbuf library.
 //!
