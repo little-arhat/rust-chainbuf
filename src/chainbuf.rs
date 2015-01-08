@@ -989,7 +989,7 @@ impl<'src> Clone for Node<'src> {
 }
 
 /// Trait representing immutable data holders: mmap, mem wrapper, enc.
-trait ImmutableDataHolder for Sized? {
+trait ImmutableDataHolder {
     /// Returns *size* bytes from dataholder starting from *offset*.
     fn get_data(&self, offset: uint, size: uint) -> &[u8];
     /// Return size of dataholder.
@@ -1026,14 +1026,14 @@ impl<'src> DataHolder<'src> {
     #[inline]
     fn holder_mut(&mut self) -> Option<&mut MutableDataHolder> {
         match self {
-            &DataHolder::Mutable(ref mut rcbdh) => {
+            &mut DataHolder::Mutable(ref mut rcbdh) => {
                 if let Some(bdh) = rc::get_mut(rcbdh) {
                     Some(&mut **bdh)
                 } else {
                     None
                 }
             }
-            &DataHolder::Immutable(_) => { None }
+            &mut DataHolder::Immutable(_) => { None }
         }
     }
 
