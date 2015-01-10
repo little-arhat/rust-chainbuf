@@ -16,7 +16,7 @@
 #[allow(unstable)] extern crate collections;
 
 // Exetrnal dependencies
-#[cfg(feature="nix")] extern crate nix;
+#[allow(unstable)] #[cfg(feature="nix")] extern crate nix;
 #[allow(unstable)] #[cfg(feature="nix")] extern crate libc;
 
 pub use chainbuf::Chain;
