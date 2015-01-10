@@ -91,11 +91,12 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_pullup_works_on_large_sequences() {
         let mut chain = Chain::new();
-        let total = 2048u;
+        let total = 2048us;
         let mut t = total;
-        let one_seq = 128u;
+        let one_seq = 128us;
         let mut buf = Vec::new();
         while t > 0 {
             let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
@@ -107,7 +108,7 @@ mod test {
         {
             let ret = chain.pullup(total);
             assert!(ret.is_some());
-            assert_eq!(ret.unwrap(), buf.as_slice());
+            assert_eq!(ret.unwrap(), &buf[]);
         }
         assert_eq!(chain.len(), total);
     }
@@ -158,6 +159,7 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_append_copies_data() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
@@ -178,6 +180,7 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_move_from_moves_data() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
@@ -192,8 +195,8 @@ mod test {
         assert_eq!(chain2.len(), hlb);
         {
             let mut ss = String::from_str(s);
-            ss.push_str(s.slice(0, hlb));
-            let r = b.slice_from(hlb);
+            ss.push_str(&s[0..hlb]);
+            let r = &b[hlb..];
             let r1 = chain1.pullup(lb + hlb);
             let r2 = chain2.pullup(hlb);
             assert!(r1.is_some());
@@ -204,6 +207,7 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_move_from_move_on_node_edge() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
@@ -240,12 +244,13 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_reserve_returns_free_buffer() {
         let mut chain = Chain::new();
         chain.append_bytes("helloworld".as_bytes());
         let buf = chain.reserve(10);
         let pat:Vec<u8> = repeat(0u8).take(10).collect();
-        assert_eq!(buf.as_slice(), pat.as_slice());
+        assert_eq!(&buf[], &pat[]);
     }
 
     #[test]
@@ -278,16 +283,18 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_to_utf8_str_returns_none_on_non_utf8() {
         let mut chain = Chain::new();
         let b = [0xf0_u8, 0xff_u8, 0xff_u8, 0x10_u8];
-        chain.append_bytes(b.as_slice());
+        chain.append_bytes(&b[]);
         let res = chain.to_utf8_str();
         assert!(res.is_some());
         assert!(res.unwrap().is_err());
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_to_utf8_returns_correct_string() {
         let mut chain = Chain::new();
         let s:String = thread_rng().gen_ascii_chars().take(CHB_MIN_SIZE * 4).collect();
@@ -295,7 +302,7 @@ mod test {
         let res = chain.to_utf8_str();
         assert!(res.is_some());
         assert!(res.unwrap().is_ok());
-        assert_eq!(res.unwrap().ok().unwrap(), s.as_slice());
+        assert_eq!(res.unwrap().ok().unwrap(), &s[]);
     }
 
     #[test]
@@ -315,25 +322,27 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_find_returns_none_if_not_found() {
         let mut chain = Chain::new();
         let needle = [1u8, 2u8, 3u8];
-        let one_seq = 128u;
-        for _ in range(0u, 20) {
+        let one_seq = 128us;
+        for _ in (0us..20) {
             let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             chain.append_bytes(b);
         }
-        let res = chain.find(needle.as_slice());
+        let res = chain.find(&needle[]);
         assert!(res.is_none());
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_find_returns_correct_offset() {
         let mut chain = Chain::new();
         let mut offs = 0;
         let needle = "the quick brown fox jumps over the lazy dog";
-        for i in range(0u, 20) {
+        for i in (0us..20) {
             let mut int_rng = thread_rng();
             let s:String = thread_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
             let bytes = s.as_bytes();
@@ -352,12 +361,13 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_chains_with_same_content_are_equal() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
-        let total = 2048u;
+        let total = 2048us;
         let mut t = total;
-        let one_seq = 128u;
+        let one_seq = 128us;
         while t > 0 {
             let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
@@ -389,6 +399,7 @@ mod test {
     }
 
     #[test]
+    #[allow(unstable)]
     fn test_copy_bytes_from_returns_copies_bytes() {
         let mut chain = Chain::new();
         let mut offs = 0;
@@ -400,7 +411,7 @@ mod test {
             }
         }
         let res = chain.copy_bytes_from(offs, v[2].len());
-        assert_eq!(res.as_slice(), v[2].as_bytes());
+        assert_eq!(&res[], v[2].as_bytes());
     }
 
     #[test]
@@ -468,7 +479,7 @@ mod test {
             chain.append_bytes(el.as_bytes());
             chain.append_bytes("-".as_bytes());
         }
-        let patt = join_string("-", v.slice(0, 3));
+        let patt = join_string("-", &v[0 .. 3]);
         let res = chain.pullup_to("otherstring".as_bytes());
         assert!(res.is_some());
         assert_eq!(res.unwrap(), patt.as_bytes());

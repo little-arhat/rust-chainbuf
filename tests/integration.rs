@@ -11,13 +11,14 @@ mod test {
         use std::iter::{repeat};
 
         #[test]
+        #[allow(unstable)]
         fn test_write_to_fd_works() {
             // Run this test with some pipes so we don't have to mess around with
             // opening or closing files.
             let mut chain = Chain::new();
 
             let mut to_write = Vec::with_capacity(16 * 128);
-            for _ in range(0u, 16) {
+            for _ in (0us..16) {
                 let s:String = thread_rng().gen_ascii_chars().take(128).collect();
                 let b = s.as_bytes();
                 chain.append_bytes(b);
@@ -39,12 +40,12 @@ mod test {
             // chain has been drained
             assert_eq!(chain.len(), 0);
             let mut read_buf:Vec<u8> = repeat(0u8).take(128 * 16).collect();
-            let read_res = read(reader, read_buf.as_mut_slice());
+            let read_res = read(reader, &mut read_buf[]);
             assert!(read_res.is_ok());
-            let read = read_res.ok().unwrap() as uint;
+            let read = read_res.ok().unwrap() as usize;
             // Check we have read as much as we written
             assert_eq!(read, written);
-            assert_eq!(to_write.as_slice(), read_buf.as_slice());
+            assert_eq!(&to_write[], &read_buf[]);
             let _ = close(writer);
             let _ = close(reader);
         }
@@ -59,6 +60,7 @@ mod test {
         use std::io::{TempDir, USER_FILE};
 
         #[test]
+        #[allow(unstable)]
         fn test_append_flie() {
             let s:String = thread_rng().gen_ascii_chars().take(1024).collect();
             let v = s.into_bytes();
@@ -72,7 +74,7 @@ mod test {
                                     USER_FILE);
             assert!(open_res.is_ok());
             let fd = open_res.ok().unwrap();
-            let write_res = write(fd, v.as_slice());
+            let write_res = write(fd, &v[]);
             assert!(write_res.is_ok());
             let close_res = close(fd);
             assert!(close_res.is_ok());
@@ -84,7 +86,7 @@ mod test {
             let pulled = chain.pullup(written);
             assert!(pulled.is_some());
             let data = pulled.unwrap();
-            assert_eq!(data, v.as_slice());
+            assert_eq!(data, &v[]);
         }
     }
 
