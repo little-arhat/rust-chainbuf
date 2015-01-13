@@ -435,9 +435,9 @@ impl<'src> Chain<'src> {
     /// assert_eq!(chain1.pullup(10).unwrap(), "helloworld".as_bytes());
     /// ```
     #[allow(unstable)]
-    pub fn concat(&mut self, src: Chain<'src>) {
+    pub fn concat(&mut self, mut src: Chain<'src>) {
         self.length += src.length;
-        self.head.append(src.head);
+        self.head.append(&mut src.head);
         // No need to cleanup `src`, because it has moved and cannot be used
     }
 
@@ -546,8 +546,8 @@ impl<'src> Chain<'src> {
     #[allow(unstable)]
     pub fn move_all_from(&mut self, src: &mut Chain<'src>) {
         self.length += src.length;
-        let sh = mem::replace(&mut src.head, DList::new());
-        self.head.append(sh);
+        let mut sh = mem::replace(&mut src.head, DList::new());
+        self.head.append(&mut sh);
         src.length = 0;
     }
 
