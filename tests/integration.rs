@@ -1,5 +1,11 @@
+#![feature(core)]
+#![feature(rand)]
+#![feature(io)]
+#![feature(path)]
+
 extern crate chainbuf;
 #[cfg(feature="nix")] extern crate nix;
+
 
 #[cfg(test)]
 mod test {
@@ -11,7 +17,6 @@ mod test {
         use std::iter::{repeat};
 
         #[test]
-        #[allow(unstable)]
         fn test_write_to_fd_works() {
             // Run this test with some pipes so we don't have to mess around with
             // opening or closing files.
@@ -56,11 +61,11 @@ mod test {
         use chainbuf::Chain;
         use nix::unistd::{close, write};
         use nix::fcntl as nf;
+        use nix::sys::stat as stat;
         use std::rand::{thread_rng, Rng};
-        use std::io::{TempDir, USER_FILE};
+        use std::old_io::{TempDir};
 
         #[test]
-        #[allow(unstable)]
         fn test_append_flie() {
             let s:String = thread_rng().gen_ascii_chars().take(1024).collect();
             let v = s.into_bytes();
@@ -69,9 +74,11 @@ mod test {
             let tmpd = tmpd_res.ok().unwrap();
             let mut p = tmpd.path().clone();
             p.push("mmaped_file.map");
+            let user_file = stat::S_IRUSR | stat::S_IWUSR |
+                            stat::S_IRGRP | stat::S_IROTH;
             let open_res = nf::open(&p,
                                     nf::O_CREAT | nf::O_RDWR | nf::O_TRUNC,
-                                    USER_FILE);
+                                    user_file);
             assert!(open_res.is_ok());
             let fd = open_res.ok().unwrap();
             let write_res = write(fd, &v[]);

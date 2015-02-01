@@ -17,8 +17,7 @@ doctest = true
 default = ["nix"]
 
 [dependencies.nix]
-# git = "https://github.com/carllerche/nix-rust"
-git = "https://github.com/FlaPer87/nix-rust.git"
+git = "https://github.com/carllerche/nix-rust"
 optional = true
 
 default-features = true

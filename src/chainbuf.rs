@@ -13,10 +13,9 @@ use collections::slice::bytes;
 #[cfg(feature="nix")] use nix::fcntl as nf;
 #[cfg(feature="nix")] use nix::errno::{SysResult};
 #[cfg(feature="nix")] use nix::unistd::{writev, Iovec, close};
-#[cfg(feature="nix")] use nix::sys::stat;
+#[cfg(feature="nix")] use nix::sys::stat as stat;
 #[cfg(feature="nix")] use nix::sys::mman;
 #[cfg(feature="nix")] use std::path::Path;
-#[cfg(feature="nix")] use std::io::FilePermission;
 #[cfg(feature="nix")] use std::num::from_i64;
 #[cfg(feature="nix")] use libc;
 #[cfg(feature="nix")] use std::raw::Slice as RawSlice;
@@ -41,7 +40,6 @@ fn move_n<T>(src: &mut DList<T>, dst: &mut DList<T>, n: usize) {
 
 /// Finds subsequence of bytes in bytesequence. Returnt offset or None
 /// if nothing found.
-#[allow(unstable)]
 fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     unsafe {
         let hs:&str = mem::transmute(haystack);
@@ -434,7 +432,6 @@ impl<'src> Chain<'src> {
     /// chain1.concat(chain2);
     /// assert_eq!(chain1.pullup(10).unwrap(), "helloworld".as_bytes());
     /// ```
-    #[allow(unstable)]
     pub fn concat(&mut self, mut src: Chain<'src>) {
         self.length += src.length;
         self.head.append(&mut src.head);
@@ -543,7 +540,6 @@ impl<'src> Chain<'src> {
     /// assert_eq!(chain1.len(), 0);
     /// assert_eq!(chain2.len(), 10);
     /// ```
-    #[allow(unstable)]
     pub fn move_all_from(&mut self, src: &mut Chain<'src>) {
         self.length += src.length;
         let mut sh = mem::replace(&mut src.head, DList::new());
@@ -705,7 +701,6 @@ impl<'src> Chain<'src> {
     /// chain.append_bytes("helloworld".as_bytes());
     /// assert_eq!(chain.copy_bytes_from(2, 2), "ll".as_bytes().to_vec());
     /// ```
-    #[allow(unstable)]
     pub fn copy_bytes_from(&'src self, offs: usize, size: usize) -> Vec<u8> {
         if offs > self.len() {
             return Vec::new();
@@ -762,7 +757,6 @@ impl<'src> Chain<'src> {
     /// }
     /// ```
     #[cfg(feature = "nix")]
-    #[allow(unstable)]
     pub fn write_to_fd(&mut self, fd: nf::Fd, size:Option<usize>, nodes:Option<usize>) -> SysResult<usize> {
         let max_size = if size.is_some() { size.unwrap() } else { self.len() };
         let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
@@ -798,9 +792,8 @@ impl<'src> Chain<'src> {
     /// assert!(chain.len() > 0);
     /// ```
     #[cfg(feature = "nix")]
-    #[allow(unstable)]
     pub fn append_file(&mut self, path: &Path) -> SysResult<()> {
-        let fd = try!(nf::open(path, nf::O_RDONLY, FilePermission::empty()));
+        let fd = try!(nf::open(path, nf::O_RDONLY, stat::Mode::empty()));
         let fdst = try!(stat::fstat(fd));
         // XXX: fstat's st_size is signed, but in practice it shouldn't be
         let size:usize = from_i64(fdst.st_size).unwrap();
@@ -1030,7 +1023,6 @@ enum DataHolder<'src> {
 
 impl<'src> DataHolder<'src> {
     #[inline]
-    #[allow(unstable)]
     fn holder_mut(&mut self) -> Option<&mut MutableDataHolder> {
         match self {
             &mut DataHolder::Mutable(ref mut rcbdh) => {
@@ -1057,7 +1049,6 @@ impl<'src> DataHolder<'src> {
     }
 
     #[inline]
-    #[allow(unstable)]
     fn is_readonly(&self) -> bool {
         match self {
             &DataHolder::Mutable(ref rcbdh) => {
@@ -1110,7 +1101,6 @@ impl ImmutableDataHolder for MemoryBuffer {
 
 impl MutableDataHolder for MemoryBuffer {
     #[inline]
-    #[allow(unstable)]
     fn fill_from(&mut self, dst_offs: usize, src: &[u8]) {
         let len = src.len();
         let sd = &mut self.data[dst_offs .. dst_offs + len];
@@ -1189,7 +1179,6 @@ impl<'a> Drop for MmappedFile<'a> {
 
 impl<'a> ImmutableDataHolder for MmappedFile<'a> {
     #[inline]
-    #[allow(unstable)]
     fn get_data(&self, offset: usize, size: usize) -> &[u8] {
         unsafe {
             mem::transmute(RawSlice{

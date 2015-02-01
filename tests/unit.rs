@@ -1,3 +1,6 @@
+#![feature(rand)]
+#![feature(core)]
+#![feature(collections)]
 
 extern crate chainbuf;
 
@@ -91,7 +94,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_pullup_works_on_large_sequences() {
         let mut chain = Chain::new();
         let total = 2048us;
@@ -159,7 +161,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_append_copies_data() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
@@ -180,7 +181,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_move_from_moves_data() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
@@ -207,7 +207,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_move_from_move_on_node_edge() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
@@ -244,7 +243,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_reserve_returns_free_buffer() {
         let mut chain = Chain::new();
         chain.append_bytes("helloworld".as_bytes());
@@ -283,7 +281,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_to_utf8_str_returns_none_on_non_utf8() {
         let mut chain = Chain::new();
         let b = [0xf0_u8, 0xff_u8, 0xff_u8, 0x10_u8];
@@ -294,7 +291,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_to_utf8_returns_correct_string() {
         let mut chain = Chain::new();
         let s:String = thread_rng().gen_ascii_chars().take(CHB_MIN_SIZE * 4).collect();
@@ -322,7 +318,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_find_returns_none_if_not_found() {
         let mut chain = Chain::new();
         let needle = [1u8, 2u8, 3u8];
@@ -337,7 +332,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_find_returns_correct_offset() {
         let mut chain = Chain::new();
         let mut offs = 0;
@@ -361,7 +355,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_chains_with_same_content_are_equal() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
@@ -399,7 +392,6 @@ mod test {
     }
 
     #[test]
-    #[allow(unstable)]
     fn test_copy_bytes_from_returns_copies_bytes() {
         let mut chain = Chain::new();
         let mut offs = 0;

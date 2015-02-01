@@ -4,6 +4,10 @@
 #![deny(warnings)]
 
 #![feature(unsafe_destructor)]
+#![feature(collections)]
+#![feature(libc)]
+#![feature(core)]
+#![feature(alloc)]
 
 //! The main crate for the Chainbuf library.
 //!
@@ -11,13 +15,13 @@
 //!
 
 // Stdlib dependencies
-#[allow(unstable)] #[cfg(test)] extern crate test;
+#[cfg(test)] extern crate test;
 
-#[allow(unstable)] extern crate collections;
+extern crate collections;
 
 // Exetrnal dependencies
-#[allow(unstable)] #[cfg(feature="nix")] extern crate nix;
-#[allow(unstable)] #[cfg(feature="nix")] extern crate libc;
+#[cfg(feature="nix")] extern crate nix;
+#[cfg(feature="nix")] extern crate libc;
 
 pub use chainbuf::Chain;
 
