@@ -16,9 +16,13 @@ doctest = true
 [features]
 default = ["nix"]
 
+[dependencies]
+rand = "0.1"
+
 [dependencies.nix]
 git = "https://github.com/carllerche/nix-rust"
 optional = true
+
 
 default-features = true
 

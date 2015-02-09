@@ -1,14 +1,14 @@
-#![feature(rand)]
 #![feature(core)]
 #![feature(collections)]
 
+extern crate rand;
 extern crate chainbuf;
 
 
 #[cfg(test)]
 mod test {
     use chainbuf::{CHB_MIN_SIZE, Chain};
-    use std::rand::{thread_rng, Rng};
+    use rand::{thread_rng, Rng};
     use std::iter::{repeat};
 
     #[test]

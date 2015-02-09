@@ -15,7 +15,7 @@ use collections::slice::bytes;
 #[cfg(feature="nix")] use nix::unistd::{writev, Iovec, close};
 #[cfg(feature="nix")] use nix::sys::stat as stat;
 #[cfg(feature="nix")] use nix::sys::mman;
-#[cfg(feature="nix")] use std::path::Path;
+#[cfg(feature="nix")] use std::old_path::Path;
 #[cfg(feature="nix")] use std::num::from_i64;
 #[cfg(feature="nix")] use libc;
 #[cfg(feature="nix")] use std::raw::Slice as RawSlice;

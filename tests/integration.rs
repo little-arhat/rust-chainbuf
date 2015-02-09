@@ -1,7 +1,8 @@
 #![feature(core)]
-#![feature(rand)]
 #![feature(io)]
 #![feature(path)]
+
+extern crate rand;
 
 extern crate chainbuf;
 #[cfg(feature="nix")] extern crate nix;
@@ -13,7 +14,7 @@ mod test {
     mod test_writev {
         use chainbuf::Chain;
         use nix::unistd::{pipe, close, read};
-        use std::rand::{thread_rng, Rng};
+        use rand::{thread_rng, Rng};
         use std::iter::{repeat};
 
         #[test]
@@ -62,7 +63,7 @@ mod test {
         use nix::unistd::{close, write};
         use nix::fcntl as nf;
         use nix::sys::stat as stat;
-        use std::rand::{thread_rng, Rng};
+        use rand::{thread_rng, Rng};
         use std::old_io::{TempDir};
 
         #[test]
