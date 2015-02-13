@@ -11,11 +11,10 @@ use collections::slice::bytes;
 
 // Put these in other module and extend Chain
 #[cfg(feature="nix")] use nix::fcntl as nf;
-#[cfg(feature="nix")] use nix::errno::{SysResult};
+#[cfg(feature="nix")] use nix::{NixResult,NixPath};
 #[cfg(feature="nix")] use nix::unistd::{writev, Iovec, close};
 #[cfg(feature="nix")] use nix::sys::stat as stat;
 #[cfg(feature="nix")] use nix::sys::mman;
-#[cfg(feature="nix")] use std::old_path::Path;
 #[cfg(feature="nix")] use std::num::from_i64;
 #[cfg(feature="nix")] use libc;
 #[cfg(feature="nix")] use std::raw::Slice as RawSlice;
@@ -757,7 +756,7 @@ impl<'src> Chain<'src> {
     /// }
     /// ```
     #[cfg(feature = "nix")]
-    pub fn write_to_fd(&mut self, fd: nf::Fd, size:Option<usize>, nodes:Option<usize>) -> SysResult<usize> {
+    pub fn write_to_fd(&mut self, fd: nf::Fd, size:Option<usize>, nodes:Option<usize>) -> NixResult<usize> {
         let max_size = if size.is_some() { size.unwrap() } else { self.len() };
         let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
         // XXX: want to allocate this on stack, though
@@ -785,14 +784,14 @@ impl<'src> Chain<'src> {
     /// # Example:
     /// ```ignore
     /// use chainbuf::Chain;
-    /// let path = std::path::Path::new("/tmp/path");
+    /// let path = b"/tmp/path";
     /// let mut chain = Chain::new();
     /// chain.append_file(path);
     /// println!("{}", chain.len());
     /// assert!(chain.len() > 0);
     /// ```
     #[cfg(feature = "nix")]
-    pub fn append_file(&mut self, path: &Path) -> SysResult<()> {
+    pub fn append_file<P:NixPath>(&mut self, path: P) -> NixResult<()> {
         let fd = try!(nf::open(path, nf::O_RDONLY, stat::Mode::empty()));
         let fdst = try!(stat::fstat(fd));
         // XXX: fstat's st_size is signed, but in practice it shouldn't be
@@ -1153,7 +1152,7 @@ struct MmappedFile<'a> {
 }
 
 impl<'a> MmappedFile<'a> {
-    fn new<'src>(fd:nf::Fd, size:usize) -> SysResult<DataHolder<'src>> {
+    fn new<'src>(fd:nf::Fd, size:usize) -> NixResult<DataHolder<'src>> {
         let addr = try!(mman::mmap(0 as *mut libc::c_void,
                                    size as u64, mman::PROT_READ,
                                    mman::MAP_SHARED, fd, 0));

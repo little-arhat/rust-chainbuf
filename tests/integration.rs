@@ -1,4 +1,3 @@
-#![feature(core)]
 #![feature(io)]
 #![feature(path)]
 
@@ -75,9 +74,10 @@ mod test {
             let tmpd = tmpd_res.ok().unwrap();
             let mut p = tmpd.path().clone();
             p.push("mmaped_file.map");
+            let ps = p.as_str().unwrap().as_bytes();
             let user_file = stat::S_IRUSR | stat::S_IWUSR |
                             stat::S_IRGRP | stat::S_IROTH;
-            let open_res = nf::open(&p,
+            let open_res = nf::open(ps,
                                     nf::O_CREAT | nf::O_RDWR | nf::O_TRUNC,
                                     user_file);
             assert!(open_res.is_ok());
@@ -88,7 +88,7 @@ mod test {
             assert!(close_res.is_ok());
             let written = write_res.ok().unwrap();
             let mut chain = Chain::new();
-            let apfile_res = chain.append_file(&p);
+            let apfile_res = chain.append_file(ps);
             assert!(apfile_res.is_ok());
             assert_eq!(chain.len(), written);
             let pulled = chain.pullup(written);
