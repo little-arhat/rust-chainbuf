@@ -20,7 +20,9 @@ default = ["nix"]
 rand = "0.1"
 
 [dependencies.nix]
-git = "https://github.com/carllerche/nix-rust"
+git = "https://github.com/little-arhat/nix-rust"
+branch = "compat-errno-i32"
+# git = "https://github.com/carllerche/nix-rust"
 optional = true
 
 
