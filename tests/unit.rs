@@ -95,9 +95,9 @@ mod test {
     #[test]
     fn test_pullup_works_on_large_sequences() {
         let mut chain = Chain::new();
-        let total = 2048us;
+        let total = 2048usize;
         let mut t = total;
-        let one_seq = 128us;
+        let one_seq = 128usize;
         let mut buf = Vec::new();
         while t > 0 {
             let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
@@ -109,7 +109,7 @@ mod test {
         {
             let ret = chain.pullup(total);
             assert!(ret.is_some());
-            assert_eq!(ret.unwrap(), &buf[]);
+            assert_eq!(ret.unwrap(), &buf[..]);
         }
         assert_eq!(chain.len(), total);
     }
@@ -247,7 +247,7 @@ mod test {
         chain.append_bytes("helloworld".as_bytes());
         let buf = chain.reserve(10);
         let pat:Vec<u8> = repeat(0u8).take(10).collect();
-        assert_eq!(&buf[], &pat[]);
+        assert_eq!(&buf[..], &pat[..]);
     }
 
     #[test]
@@ -283,7 +283,7 @@ mod test {
     fn test_to_utf8_str_returns_none_on_non_utf8() {
         let mut chain = Chain::new();
         let b = [0xf0_u8, 0xff_u8, 0xff_u8, 0x10_u8];
-        chain.append_bytes(&b[]);
+        chain.append_bytes(&b[..]);
         let res = chain.to_utf8_str();
         assert!(res.is_some());
         assert!(res.unwrap().is_err());
@@ -297,7 +297,7 @@ mod test {
         let res = chain.to_utf8_str();
         assert!(res.is_some());
         assert!(res.unwrap().is_ok());
-        assert_eq!(res.unwrap().ok().unwrap(), &s[]);
+        assert_eq!(res.unwrap().ok().unwrap(), &s[..]);
     }
 
     #[test]
@@ -320,13 +320,13 @@ mod test {
     fn test_find_returns_none_if_not_found() {
         let mut chain = Chain::new();
         let needle = [1u8, 2u8, 3u8];
-        let one_seq = 128us;
-        for _ in (0us..20) {
+        let one_seq = 128usize;
+        for _ in (0usize..20) {
             let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             chain.append_bytes(b);
         }
-        let res = chain.find(&needle[]);
+        let res = chain.find(&needle[..]);
         assert!(res.is_none());
     }
 
@@ -335,7 +335,7 @@ mod test {
         let mut chain = Chain::new();
         let mut offs = 0;
         let needle = "the quick brown fox jumps over the lazy dog";
-        for i in (0us..20) {
+        for i in (0usize..20) {
             let mut int_rng = thread_rng();
             let s:String = thread_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
             let bytes = s.as_bytes();
@@ -357,9 +357,9 @@ mod test {
     fn test_chains_with_same_content_are_equal() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
-        let total = 2048us;
+        let total = 2048usize;
         let mut t = total;
-        let one_seq = 128us;
+        let one_seq = 128usize;
         while t > 0 {
             let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
@@ -402,7 +402,7 @@ mod test {
             }
         }
         let res = chain.copy_bytes_from(offs, v[2].len());
-        assert_eq!(&res[], v[2].as_bytes());
+        assert_eq!(&res[..], v[2].as_bytes());
     }
 
     #[test]

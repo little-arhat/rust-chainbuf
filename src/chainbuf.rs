@@ -12,7 +12,8 @@ use collections::slice::bytes;
 // Put these in other module and extend Chain
 #[cfg(feature="nix")] use nix::fcntl as nf;
 #[cfg(feature="nix")] use nix::{NixResult,NixPath};
-#[cfg(feature="nix")] use nix::unistd::{writev, Iovec, close};
+#[cfg(feature="nix")] use nix::sys::uio::{writev, IoVec};
+#[cfg(feature="nix")] use nix::unistd::close;
 #[cfg(feature="nix")] use nix::sys::stat as stat;
 #[cfg(feature="nix")] use nix::sys::mman;
 #[cfg(feature="nix")] use std::num::from_i64;
@@ -20,7 +21,7 @@ use collections::slice::bytes;
 #[cfg(feature="nix")] use std::raw::Slice as RawSlice;
 
 
-pub static CHB_MIN_SIZE:usize = 32us;
+pub static CHB_MIN_SIZE:usize = 32usize;
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
@@ -43,14 +44,14 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     unsafe {
         let hs:&str = mem::transmute(haystack);
         let ns:&str = mem::transmute(needle);
-        hs.find_str(ns)
+        hs.find(ns)
     }
 }
 
 fn find_overlap<U:Eq, T:Iterator<Item=U> + Clone>(large: T, short: T) -> usize {
     let mut haystack_it = large.clone();
     let mut needle_it = short.clone();
-    let mut matched = 0us;
+    let mut matched = 0usize;
     let mut current_needle = needle_it.clone();
     loop {
         if let Some(b) = current_needle.next() {
@@ -738,6 +739,7 @@ impl<'src> Chain<'src> {
     /// # Example
     /// ```
     /// extern crate nix;
+    /// extern crate chainbuf;
     /// use chainbuf::Chain;
     /// use nix::unistd::{pipe, close, read};
     /// use std::iter::{repeat};
@@ -748,10 +750,10 @@ impl<'src> Chain<'src> {
     ///     chain.append_bytes(d);
     ///     let written = chain.write_to_fd(writer, None, None).ok().unwrap();
     ///     close(writer);
-    ///     let mut read_buf = repeat(0u8).take(written).collect();
-    ///     let read = read(reader, &mut read_buf[]).ok().unwrap();
+    ///     let mut read_buf:Vec<u8> = repeat(0u8).take(written).collect();
+    ///     let read = read(reader, &mut read_buf[..]).ok().unwrap();
     ///     assert_eq!(read, written);
-    ///     assert_eq!(&read_buf[], d);
+    ///     assert_eq!(&read_buf[..], d);
     ///     close(reader);
     /// }
     /// ```
@@ -760,18 +762,24 @@ impl<'src> Chain<'src> {
         let max_size = if size.is_some() { size.unwrap() } else { self.len() };
         let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
         // XXX: want to allocate this on stack, though
-        let mut v = Vec::with_capacity(max_nodes);
-        let mut towrite = 0;
-        for n in self.head.iter().take(max_nodes) {
-            let ns = n.size();
-            v.push(Iovec::from_slice(n.get_data_from_start(ns)));
-            towrite += ns;
-            if towrite >= max_size {
-                break;
+        let res;
+        {
+            // Fchk you, borrowchecker!
+            let mut v = Vec::with_capacity(max_nodes);
+            let mut towrite = 0;
+
+            for n in self.head.iter().take(max_nodes) {
+                let ns = n.size();
+                v.push(IoVec::from_slice(n.get_data_from_start(ns)));
+                towrite += ns;
+                if towrite >= max_size {
+                    break;
+                }
             }
+
+            res = writev(fd, &v[..]);
         }
 
-        let res = writev(fd, &v[]);
         if res.is_ok() {
             self.drain(res.ok().unwrap());
         }
@@ -791,7 +799,7 @@ impl<'src> Chain<'src> {
     /// assert!(chain.len() > 0);
     /// ```
     #[cfg(feature = "nix")]
-    pub fn append_file<P:NixPath>(&mut self, path: P) -> NixResult<()> {
+    pub fn append_file<P:NixPath>(&mut self, path: &P) -> NixResult<()> {
         let fd = try!(nf::open(path, nf::O_RDONLY, stat::Mode::empty()));
         let fdst = try!(stat::fstat(fd));
         // XXX: fstat's st_size is signed, but in practice it shouldn't be
@@ -1145,13 +1153,13 @@ impl<'a> ImmutableDataHolder for MemoryWrapper<'a> {
 
 /// Dataholder as wrapper over mmaped file.
 #[cfg(feature="nix")]
-struct MmappedFile<'a> {
+struct MmappedFile {
     size: usize,
     fd: nf::Fd,
-    addr: *const u8
+    addr: *const u8,
 }
 
-impl<'a> MmappedFile<'a> {
+impl MmappedFile {
     fn new<'src>(fd:nf::Fd, size:usize) -> NixResult<DataHolder<'src>> {
         let addr = try!(mman::mmap(0 as *mut libc::c_void,
                                    size as u64, mman::PROT_READ,
@@ -1167,7 +1175,7 @@ impl<'a> MmappedFile<'a> {
 }
 
 #[unsafe_destructor]
-impl<'a> Drop for MmappedFile<'a> {
+impl Drop for MmappedFile {
     fn drop(&mut self) {
         let munmap_res = mman::munmap(self.addr as *mut libc::c_void,
                                       self.size as libc::size_t);
@@ -1176,7 +1184,7 @@ impl<'a> Drop for MmappedFile<'a> {
     }
 }
 
-impl<'a> ImmutableDataHolder for MmappedFile<'a> {
+impl ImmutableDataHolder for MmappedFile {
     #[inline]
     fn get_data(&self, offset: usize, size: usize) -> &[u8] {
         unsafe {

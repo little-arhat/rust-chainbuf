@@ -1,4 +1,4 @@
-#![feature(io)]
+#![feature(tempdir)]
 #![feature(path)]
 
 extern crate rand;
@@ -23,7 +23,7 @@ mod test {
             let mut chain = Chain::new();
 
             let mut to_write = Vec::with_capacity(16 * 128);
-            for _ in (0us..16) {
+            for _ in (0usize..16) {
                 let s:String = thread_rng().gen_ascii_chars().take(128).collect();
                 let b = s.as_bytes();
                 chain.append_bytes(b);
@@ -45,25 +45,26 @@ mod test {
             // chain has been drained
             assert_eq!(chain.len(), 0);
             let mut read_buf:Vec<u8> = repeat(0u8).take(128 * 16).collect();
-            let read_res = read(reader, &mut read_buf[]);
+            let read_res = read(reader, &mut read_buf[..]);
             assert!(read_res.is_ok());
             let read = read_res.ok().unwrap() as usize;
             // Check we have read as much as we written
             assert_eq!(read, written);
-            assert_eq!(&to_write[], &read_buf[]);
+            assert_eq!(&to_write[..], &read_buf[..]);
             let _ = close(writer);
             let _ = close(reader);
         }
     }
 
     #[cfg(feature="nix")]
+    #[allow(deprecated)]
     mod test_append_file {
         use chainbuf::Chain;
         use nix::unistd::{close, write};
         use nix::fcntl as nf;
         use nix::sys::stat as stat;
         use rand::{thread_rng, Rng};
-        use std::old_io::{TempDir};
+        use std::fs::{TempDir};
 
         #[test]
         fn test_append_flie() {
@@ -72,29 +73,28 @@ mod test {
             let tmpd_res = TempDir::new("chain-test");
             assert!(tmpd_res.is_ok());
             let tmpd = tmpd_res.ok().unwrap();
-            let mut p = tmpd.path().clone();
+            let mut p = tmpd.path().to_path_buf();
             p.push("mmaped_file.map");
-            let ps = p.as_str().unwrap().as_bytes();
             let user_file = stat::S_IRUSR | stat::S_IWUSR |
                             stat::S_IRGRP | stat::S_IROTH;
-            let open_res = nf::open(ps,
+            let open_res = nf::open(&p,
                                     nf::O_CREAT | nf::O_RDWR | nf::O_TRUNC,
                                     user_file);
             assert!(open_res.is_ok());
             let fd = open_res.ok().unwrap();
-            let write_res = write(fd, &v[]);
+            let write_res = write(fd, &v[..]);
             assert!(write_res.is_ok());
             let close_res = close(fd);
             assert!(close_res.is_ok());
             let written = write_res.ok().unwrap();
             let mut chain = Chain::new();
-            let apfile_res = chain.append_file(ps);
+            let apfile_res = chain.append_file(&p);
             assert!(apfile_res.is_ok());
             assert_eq!(chain.len(), written);
             let pulled = chain.pullup(written);
             assert!(pulled.is_some());
             let data = pulled.unwrap();
-            assert_eq!(data, &v[]);
+            assert_eq!(data, &v[..]);
         }
     }
 
