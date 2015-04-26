@@ -1,7 +1,6 @@
-#![feature(tempdir)]
-#![feature(path)]
 
 extern crate rand;
+extern crate tempdir;
 
 extern crate chainbuf;
 #[cfg(feature="nix")] extern crate nix;
@@ -64,7 +63,7 @@ mod test {
         use nix::fcntl as nf;
         use nix::sys::stat as stat;
         use rand::{thread_rng, Rng};
-        use std::fs::{TempDir};
+        use tempdir::TempDir;
 
         #[test]
         fn test_append_flie() {

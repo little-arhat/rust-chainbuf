@@ -6,17 +6,17 @@ use std::mem;
 
 use std::rc::{self, Rc};
 
-use collections::dlist::DList;
+use collections::LinkedList;
 use collections::slice::bytes;
 
 // Put these in other module and extend Chain
+#[cfg(feature="nix")] use nix;
 #[cfg(feature="nix")] use nix::fcntl as nf;
-#[cfg(feature="nix")] use nix::{NixResult,NixPath};
+#[cfg(feature="nix")] use nix::NixPath;
 #[cfg(feature="nix")] use nix::sys::uio::{writev, IoVec};
 #[cfg(feature="nix")] use nix::unistd::close;
 #[cfg(feature="nix")] use nix::sys::stat as stat;
 #[cfg(feature="nix")] use nix::sys::mman;
-#[cfg(feature="nix")] use std::num::from_i64;
 #[cfg(feature="nix")] use libc;
 #[cfg(feature="nix")] use std::raw::Slice as RawSlice;
 
@@ -25,8 +25,8 @@ pub static CHB_MIN_SIZE:usize = 32usize;
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
-// XXX: if we had access to DList impl, we could do this more effective
-fn move_n<T>(src: &mut DList<T>, dst: &mut DList<T>, n: usize) {
+// XXX: if we had access to LinkedList impl, we could do this more effective
+fn move_n<T>(src: &mut LinkedList<T>, dst: &mut LinkedList<T>, n: usize) {
     let mut nc = n;
     while nc > 0 {
         if let Some(el) = src.pop_front() {
@@ -97,7 +97,7 @@ fn find_overlap<U:Eq, T:Iterator<Item=U> + Clone>(large: T, short: T) -> usize {
 /// shared across different chains, so for mutation new nodes and data holders
 /// are created (as in Copy-On-Write).
 pub struct Chain<'src> {
-    head: DList<Node<'src>>,
+    head: LinkedList<Node<'src>>,
     length: usize
 }
 
@@ -125,7 +125,7 @@ impl<'src> Chain<'src> {
     /// ```
     pub fn new() -> Chain<'src> {
         Chain{
-            head: DList::new(),
+            head: LinkedList::new(),
             length: 0
         }
     }
@@ -451,7 +451,7 @@ impl<'src> Chain<'src> {
     pub fn reset(&mut self) {
         // XXX: chb_drop; `drop` is the sole method of built-in Drop trait,
         // so use another name
-        self.head = DList::new();
+        self.head = LinkedList::new();
         self.length = 0;
     }
 
@@ -542,7 +542,7 @@ impl<'src> Chain<'src> {
     /// ```
     pub fn move_all_from(&mut self, src: &mut Chain<'src>) {
         self.length += src.length;
-        let mut sh = mem::replace(&mut src.head, DList::new());
+        let mut sh = mem::replace(&mut src.head, LinkedList::new());
         self.head.append(&mut sh);
         src.length = 0;
     }
@@ -758,7 +758,7 @@ impl<'src> Chain<'src> {
     /// }
     /// ```
     #[cfg(feature = "nix")]
-    pub fn write_to_fd(&mut self, fd: nf::Fd, size:Option<usize>, nodes:Option<usize>) -> NixResult<usize> {
+    pub fn write_to_fd(&mut self, fd: nf::Fd, size:Option<usize>, nodes:Option<usize>) -> nix::Result<usize> {
         let max_size = if size.is_some() { size.unwrap() } else { self.len() };
         let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
         // XXX: want to allocate this on stack, though
@@ -799,11 +799,11 @@ impl<'src> Chain<'src> {
     /// assert!(chain.len() > 0);
     /// ```
     #[cfg(feature = "nix")]
-    pub fn append_file<P:NixPath>(&mut self, path: &P) -> NixResult<()> {
+    pub fn append_file<P:NixPath>(&mut self, path: &P) -> nix::Result<()> {
         let fd = try!(nf::open(path, nf::O_RDONLY, stat::Mode::empty()));
         let fdst = try!(stat::fstat(fd));
         // XXX: fstat's st_size is signed, but in practice it shouldn't be
-        let size:usize = from_i64(fdst.st_size).unwrap();
+        let size:usize = fdst.st_size as usize;
         let dh = try!(MmappedFile::new(fd, size));
         let mut node = Node::with_data_holder(dh);
         node.end = node.room();
@@ -1114,7 +1114,7 @@ impl MutableDataHolder for MemoryBuffer {
         if len > sd.len() {
             panic!("copy_data_from: source larger than destination");
         }
-        bytes::copy_memory(sd, src);
+        bytes::copy_memory(src, sd);
     }
 
     #[inline]
@@ -1160,7 +1160,7 @@ struct MmappedFile {
 }
 
 impl MmappedFile {
-    fn new<'src>(fd:nf::Fd, size:usize) -> NixResult<DataHolder<'src>> {
+    fn new<'src>(fd:nf::Fd, size:usize) -> nix::Result<DataHolder<'src>> {
         let addr = try!(mman::mmap(0 as *mut libc::c_void,
                                    size as u64, mman::PROT_READ,
                                    mman::MAP_SHARED, fd, 0));

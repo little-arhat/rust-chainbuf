@@ -5,9 +5,10 @@
 
 #![feature(unsafe_destructor)]
 #![feature(collections)]
-#![feature(libc)]
 #![feature(core)]
 #![feature(alloc)]
+#![allow(unused_features)]
+#![feature(test)]
 
 //! The main crate for the Chainbuf library.
 //!
