@@ -25,8 +25,6 @@ use collections::slice::bytes;
 /// Minimum chb size
 pub static CHB_MIN_SIZE:usize = 32usize;
 
-/// Identity
-fn id<T>(x: T) -> T { x }
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
