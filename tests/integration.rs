@@ -1,13 +1,15 @@
 
-extern crate rand;
-extern crate tempdir;
+#![feature(test)]
 
-extern crate chainbuf;
+#[cfg(test)] extern crate test;
+#[cfg(test)] extern crate rand;
+#[cfg(test)] extern crate chainbuf;
+#[cfg(test)] extern crate tempdir;
+
 #[cfg(feature="nix")] extern crate nix;
 
-
 #[cfg(test)]
-mod test {
+mod integration_test {
     #[cfg(feature="nix")]
     mod test_writev {
         use chainbuf::Chain;
@@ -22,7 +24,7 @@ mod test {
             let mut chain = Chain::new();
 
             let mut to_write = Vec::with_capacity(16 * 128);
-            for _ in (0usize..16) {
+            for _ in 0usize..16 {
                 let s:String = thread_rng().gen_ascii_chars().take(128).collect();
                 let b = s.as_bytes();
                 chain.append_bytes(b);

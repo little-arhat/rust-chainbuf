@@ -1,11 +1,13 @@
-#![feature(collections)]
 
-extern crate rand;
-extern crate chainbuf;
+#![feature(test)]
+
+#[cfg(test)] extern crate test;
+#[cfg(test)] extern crate rand;
+#[cfg(test)] extern crate chainbuf;
 
 
 #[cfg(test)]
-mod test {
+mod unit_test {
     use chainbuf::{CHB_MIN_SIZE, Chain};
     use rand::{thread_rng, Rng};
     use std::iter::{repeat};
@@ -166,7 +168,7 @@ mod test {
         let s = "HelloWorld";
         let b = s.as_bytes();
         let lb = b.len();
-        let mut ss = String::from_str(s);
+        let mut ss = String::from(s);
         ss.push_str(s);
         chain1.append_bytes(b);
         chain2.append_bytes(b);
@@ -193,7 +195,7 @@ mod test {
         assert_eq!(chain1.len(), lb + hlb);
         assert_eq!(chain2.len(), hlb);
         {
-            let mut ss = String::from_str(s);
+            let mut ss = String::from(s);
             ss.push_str(&s[0..hlb]);
             let r = &b[hlb..];
             let r1 = chain1.pullup(lb + hlb);
@@ -321,7 +323,7 @@ mod test {
         let mut chain = Chain::new();
         let needle = [1u8, 2u8, 3u8];
         let one_seq = 128usize;
-        for _ in (0usize..20) {
+        for _ in 0usize..20 {
             let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             chain.append_bytes(b);
@@ -335,7 +337,7 @@ mod test {
         let mut chain = Chain::new();
         let mut offs = 0;
         let needle = "the quick brown fox jumps over the lazy dog";
-        for i in (0usize..20) {
+        for i in 0usize..20 {
             let mut int_rng = thread_rng();
             let s:String = thread_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
             let bytes = s.as_bytes();
@@ -475,5 +477,4 @@ mod test {
         assert!(res.is_some());
         assert_eq!(res.unwrap(), patt.as_bytes());
     }
-
 }

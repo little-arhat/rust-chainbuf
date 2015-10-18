@@ -4,13 +4,14 @@ use std::iter::{repeat};
 use std::str::Utf8Error;
 use std::mem;
 
-use std::rc::{self, Rc};
+use std::rc::Rc;
 
 use collections::LinkedList;
 use collections::slice::bytes;
 
 // Put these in other module and extend Chain
 #[cfg(feature="nix")] use nix;
+#[cfg(feature="nix")] use std::os::unix::io::RawFd;
 #[cfg(feature="nix")] use nix::fcntl as nf;
 #[cfg(feature="nix")] use nix::NixPath;
 #[cfg(feature="nix")] use nix::sys::uio::{writev, IoVec};
@@ -21,7 +22,11 @@ use collections::slice::bytes;
 #[cfg(feature="nix")] use std::raw::Slice as RawSlice;
 
 
+/// Minimum chb size
 pub static CHB_MIN_SIZE:usize = 32usize;
+
+/// Identity
+fn id<T>(x: T) -> T { x }
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
@@ -188,14 +193,9 @@ impl<'src> Chain<'src> {
         }
         // infailable: added node above
         let node = self.head.back_mut().unwrap();
-        // XXX: Damn, https://github.com/rust-lang/rust/issues/6268
-        // XXX: we need additional var and scope only to fight borrow checker
-        {
-            let node_end = node.end;
-            // we should be sole owner of data holder inside node here
-            let dh = node.dh.holder_mut().unwrap();
-            dh.fill_from(node_end, data);
-        }
+        // Unwrap is safe here, because we should be sole
+        // owner of data holder inside node here
+        node.dh.holder_mut().unwrap().fill_from(node.end, data);
         node.end += size;
         self.length += size;
     }
@@ -224,11 +224,7 @@ impl<'src> Chain<'src> {
         }
         // See comments in `append_bytes`
         let node = self.head.front_mut().unwrap();
-        {
-            let node_start = node.start;
-            let dh = node.dh.holder_mut().unwrap();
-            dh.fill_from(node_start - size, data);
-        }
+        node.dh.holder_mut().unwrap().fill_from(node.start - size, data);
         node.start -= size;
         self.length += size;
     }
@@ -264,6 +260,7 @@ impl<'src> Chain<'src> {
     /// assert_eq!(chain.pullup(2).unwrap(), "he".as_bytes()); // does not create new node
     /// assert_eq!(chain.pullup(25).unwrap(), "helloworldhelloworldhello".as_bytes()); // create new node
     /// ```
+    #[allow(mutable_transmutes)]
     pub fn pullup(&self, size: usize) -> Option<&[u8]> {
         // This method logically immutable, so it's nice to have &self
         // in method signature.
@@ -330,7 +327,8 @@ impl<'src> Chain<'src> {
     /// assert!(res.is_some());
     /// assert_eq!(res.unwrap(), "llow".as_bytes());
     /// ```
-    pub fn pullup_from(&'src self, offs: usize, size: usize) -> Option<&[u8]> {
+    #[allow(mutable_transmutes)]
+    pub fn pullup_from(&self, offs: usize, size: usize) -> Option<&[u8]> {
         if (offs >= self.len()) || (size == 0) {
             return None;
         }
@@ -346,6 +344,7 @@ impl<'src> Chain<'src> {
         // contigious region of memory.
         // We need mutable reference to self for this, so once again use
         // std::mem::transmute:
+        // XXX: see `pullup`.
         let mut tmp = Chain::new();
         {
             let mut_self: &mut Chain;
@@ -498,7 +497,7 @@ impl<'src> Chain<'src> {
             return sz;
         }
 
-        let mut move_nodes;
+        let move_nodes;
         let mut newn = None;
         // We've done checks, so we cannot have None here
         {
@@ -701,7 +700,7 @@ impl<'src> Chain<'src> {
     /// chain.append_bytes("helloworld".as_bytes());
     /// assert_eq!(chain.copy_bytes_from(2, 2), "ll".as_bytes().to_vec());
     /// ```
-    pub fn copy_bytes_from(&'src self, offs: usize, size: usize) -> Vec<u8> {
+    pub fn copy_bytes_from(&self, offs: usize, size: usize) -> Vec<u8> {
         if offs > self.len() {
             return Vec::new();
         }
@@ -758,7 +757,7 @@ impl<'src> Chain<'src> {
     /// }
     /// ```
     #[cfg(feature = "nix")]
-    pub fn write_to_fd(&mut self, fd: nf::Fd, size:Option<usize>, nodes:Option<usize>) -> nix::Result<usize> {
+    pub fn write_to_fd(&mut self, fd: RawFd, size:Option<usize>, nodes:Option<usize>) -> nix::Result<usize> {
         let max_size = if size.is_some() { size.unwrap() } else { self.len() };
         let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
         // XXX: want to allocate this on stack, though
@@ -1020,12 +1019,8 @@ trait MutableDataHolder : ImmutableDataHolder {
 
 /// DataHolder type.
 enum DataHolder<'src> {
-    // XXX: Rc over Box is double indirection, because Rc internally is a Box
-    // itself. However, Rc is not implemented for DST, so we can not put Trait
-    // inside. And we can not implement our version of Rc because of this bug:
-    // https://github.com/rust-lang/rust/issues/17959
-    Mutable(Rc<Box<MutableDataHolder + 'src>>),
-    Immutable(Rc<Box<ImmutableDataHolder + 'src>>)
+    Mutable(Rc<MutableDataHolder + 'src>),
+    Immutable(Rc<ImmutableDataHolder + 'src>)
 }
 
 impl<'src> DataHolder<'src> {
@@ -1033,8 +1028,8 @@ impl<'src> DataHolder<'src> {
     fn holder_mut(&mut self) -> Option<&mut MutableDataHolder> {
         match self {
             &mut DataHolder::Mutable(ref mut rcbdh) => {
-                if let Some(bdh) = rc::get_mut(rcbdh) {
-                    Some(&mut **bdh)
+                if let Some(bdh) = Rc::get_mut(rcbdh) {
+                    Some(&mut *bdh)
                 } else {
                     None
                 }
@@ -1047,10 +1042,10 @@ impl<'src> DataHolder<'src> {
     fn holder(&self) -> &ImmutableDataHolder {
         match self {
             &DataHolder::Mutable(ref mbdh) => {
-                (&***mbdh).as_immut()
+                (&**mbdh).as_immut()
             }
             &DataHolder::Immutable(ref imbdh) => {
-                & ***imbdh
+                & **imbdh
             }
         }
     }
@@ -1059,7 +1054,7 @@ impl<'src> DataHolder<'src> {
     fn is_readonly(&self) -> bool {
         match self {
             &DataHolder::Mutable(ref rcbdh) => {
-                !rc::is_unique(rcbdh)
+                !Rc::is_unique(rcbdh)
             }
             &DataHolder::Immutable(_) => { true }
         }
@@ -1087,10 +1082,10 @@ struct MemoryBuffer{
 impl MemoryBuffer {
     #[inline]
     fn new<'src>(size: usize) -> DataHolder<'src> {
-        DataHolder::Mutable(Rc::new(Box::new(MemoryBuffer {
+        DataHolder::Mutable(Rc::new(MemoryBuffer {
             size: size,
             data: repeat(0).take(size).collect()
-        }) as Box<MutableDataHolder>))
+        }))
     }
 }
 
@@ -1133,9 +1128,9 @@ struct MemoryWrapper<'a> {
 
 impl <'a>MemoryWrapper<'a> {
     fn new<'src>(data: &'src [u8]) -> DataHolder<'src> {
-        DataHolder::Immutable(Rc::new(Box::new(MemoryWrapper{
+        DataHolder::Immutable(Rc::new(MemoryWrapper{
             data: data
-        }) as Box<ImmutableDataHolder>))
+        }))
     }
 }
 
@@ -1155,26 +1150,25 @@ impl<'a> ImmutableDataHolder for MemoryWrapper<'a> {
 #[cfg(feature="nix")]
 struct MmappedFile {
     size: usize,
-    fd: nf::Fd,
+    fd: RawFd,
     addr: *const u8,
 }
 
 impl MmappedFile {
-    fn new<'src>(fd:nf::Fd, size:usize) -> nix::Result<DataHolder<'src>> {
+    fn new<'src>(fd:RawFd, size:usize) -> nix::Result<DataHolder<'src>> {
         let addr = try!(mman::mmap(0 as *mut libc::c_void,
                                    size as u64, mman::PROT_READ,
                                    mman::MAP_SHARED, fd, 0));
 
-        let dh = DataHolder::Immutable(Rc::new(Box::new(MmappedFile {
+        let dh = DataHolder::Immutable(Rc::new(MmappedFile {
             size: size,
             fd: fd,
             addr: addr as *const u8
-        }) as Box<ImmutableDataHolder>));
+        }));
         Ok(dh)
     }
 }
 
-#[unsafe_destructor]
 impl Drop for MmappedFile {
     fn drop(&mut self) {
         let munmap_res = mman::munmap(self.addr as *mut libc::c_void,

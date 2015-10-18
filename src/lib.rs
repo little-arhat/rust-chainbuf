@@ -3,12 +3,11 @@
 #![deny(missing_docs)]
 #![deny(warnings)]
 
-#![feature(unsafe_destructor)]
 #![feature(collections)]
-#![feature(core)]
-#![feature(alloc)]
-#![allow(unused_features)]
-#![feature(test)]
+#![feature(slice_bytes)]
+
+#![feature(raw)]
+#![feature(rc_counts)]
 
 //! The main crate for the Chainbuf library.
 //!
@@ -16,8 +15,6 @@
 //!
 
 // Stdlib dependencies
-#[cfg(test)] extern crate test;
-
 extern crate collections;
 
 // Exetrnal dependencies
