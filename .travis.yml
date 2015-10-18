@@ -1,6 +1,7 @@
 env:
   global:
     - secure: htRYxclVFpxTjgW/2aZpcq1UCL3G0gd+pcBplr64bZz4bvOzKgy9JVX2tilO7oIY0VgF6cgcd0i/IMr2uqE5zxqbUsaipQH0SOtHQaim+RGRwxWvzF5I+c47rBwCNIrmTpGD/KQNgX+crzrYbNgC0sL/WvD/Sus/Jvmy9UDrgww=
+sudo: false
 language: rust
 rust:
   - nightly
