@@ -6,7 +6,7 @@ authors = [ "Roma Sokolov <sokolov.r.v@gmail.com>" ]
 license = "MIT"
 description = "Fast chained buffers"
 repository = "https://github.com/little-arhat/rust-chainbuf"
-keywords = ["io", "datastructures", "data structures", "zero-copy"]
+keywords = ["io", "data-structure", "zero-copy"]
 
 [lib]
 name = "chainbuf"
@@ -21,7 +21,7 @@ rand = "0.3.8"
 tempdir = "0.3"
 
 [dependencies]
-libc = "*"
+libc = "0.1.10"
 
 [dependencies.nix]
 # git = "https://github.com/carllerche/nix-rust"
