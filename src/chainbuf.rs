@@ -17,7 +17,6 @@ use collections::LinkedList;
 #[cfg(feature="nix")] use nix::unistd::close;
 #[cfg(feature="nix")] use nix::sys::stat as stat;
 #[cfg(feature="nix")] use nix::sys::mman;
-#[cfg(feature="nix")] use libc;
 #[cfg(feature="nix")] use std::slice;
 
 
@@ -1153,8 +1152,8 @@ struct MmappedFile {
 
 impl MmappedFile {
     fn new<'src>(fd:RawFd, size:usize) -> nix::Result<DataHolder<'src>> {
-        let addr = try!(mman::mmap(0 as *mut libc::c_void,
-                                   size as u64, mman::PROT_READ,
+        let addr = try!(mman::mmap(0 as *mut nix::c_void,
+                                   size, mman::PROT_READ,
                                    mman::MAP_SHARED, fd, 0));
 
         let dh = DataHolder::Immutable(Rc::new(MmappedFile {
@@ -1168,8 +1167,8 @@ impl MmappedFile {
 
 impl Drop for MmappedFile {
     fn drop(&mut self) {
-        let munmap_res = mman::munmap(self.addr as *mut libc::c_void,
-                                      self.size as libc::size_t);
+        let munmap_res = mman::munmap(self.addr as *mut nix::c_void,
+                                      self.size);
         let close_res = close(self.fd);
         assert!(munmap_res.is_ok() && close_res.is_ok());
     }

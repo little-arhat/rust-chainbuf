@@ -1,7 +1,7 @@
 [package]
 
 name = "chainbuf"
-version = "0.0.4"
+version = "0.0.5"
 authors = [ "Roma Sokolov <sokolov.r.v@gmail.com>" ]
 license = "MIT"
 description = "Fast chained buffers"
@@ -24,7 +24,7 @@ tempdir = "0.3"
 libc = "0.1.10"
 
 [dependencies.nix]
-# git = "https://github.com/carllerche/nix-rust"
+version = "0.7.0"
 optional = true
 
 
