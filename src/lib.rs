@@ -4,9 +4,7 @@
 #![deny(warnings)]
 
 #![feature(collections)]
-#![feature(slice_bytes)]
 
-#![feature(raw)]
 #![feature(rc_counts)]
 
 //! The main crate for the Chainbuf library.

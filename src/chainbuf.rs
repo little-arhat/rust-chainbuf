@@ -7,7 +7,6 @@ use std::mem;
 use std::rc::Rc;
 
 use collections::LinkedList;
-use collections::slice::bytes;
 
 // Put these in other module and extend Chain
 #[cfg(feature="nix")] use nix;
@@ -19,7 +18,7 @@ use collections::slice::bytes;
 #[cfg(feature="nix")] use nix::sys::stat as stat;
 #[cfg(feature="nix")] use nix::sys::mman;
 #[cfg(feature="nix")] use libc;
-#[cfg(feature="nix")] use std::raw::Slice as RawSlice;
+#[cfg(feature="nix")] use std::slice;
 
 
 /// Minimum chb size
@@ -1107,7 +1106,7 @@ impl MutableDataHolder for MemoryBuffer {
         if len > sd.len() {
             panic!("copy_data_from: source larger than destination");
         }
-        bytes::copy_memory(src, sd);
+        sd.copy_from_slice(src);
     }
 
     #[inline]
@@ -1180,10 +1179,8 @@ impl ImmutableDataHolder for MmappedFile {
     #[inline]
     fn get_data(&self, offset: usize, size: usize) -> &[u8] {
         unsafe {
-            mem::transmute(RawSlice{
-                data:self.addr.offset(offset as isize),
-                len: size
-            })
+            slice::from_raw_parts(self.addr.offset(offset as isize),
+                                  size)
         }
     }
 
