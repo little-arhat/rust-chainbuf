@@ -1050,7 +1050,7 @@ impl<'src> DataHolder<'src> {
     fn is_readonly(&self) -> bool {
         match self {
             &DataHolder::Mutable(ref rcbdh) => {
-                !Rc::is_unique(rcbdh)
+                Rc::weak_count(rcbdh) == 0 && Rc::strong_count(rcbdh) == 1
             }
             &DataHolder::Immutable(_) => { true }
         }

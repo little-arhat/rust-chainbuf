@@ -5,8 +5,6 @@
 
 #![feature(collections)]
 
-#![feature(rc_counts)]
-
 //! The main crate for the Chainbuf library.
 //!
 //! ... docs are to be written
