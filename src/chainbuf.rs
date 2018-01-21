@@ -6,7 +6,7 @@ use std::mem;
 
 use std::rc::Rc;
 
-use collections::LinkedList;
+use std::collections::LinkedList;
 
 // Put these in other module and extend Chain
 #[cfg(feature="nix")] use nix;

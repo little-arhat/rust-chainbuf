@@ -10,9 +10,6 @@
 //! ... docs are to be written
 //!
 
-// Stdlib dependencies
-extern crate collections;
-
 // Exetrnal dependencies
 #[cfg(feature="nix")] extern crate nix;
 
