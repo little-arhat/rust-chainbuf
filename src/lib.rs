@@ -1,8 +1,6 @@
 #![crate_name = "chainbuf"]
-
 #![deny(missing_docs)]
 #![deny(warnings)]
-
 #![feature(collections)]
 
 //! The main crate for the Chainbuf library.
@@ -11,7 +9,8 @@
 //!
 
 // Exetrnal dependencies
-#[cfg(feature="nix")] extern crate nix;
+#[cfg(feature = "nix")]
+extern crate nix;
 
 pub use chainbuf::Chain;
 

@@ -1,16 +1,17 @@
-
 #![feature(test)]
 
-#[cfg(test)] extern crate test;
-#[cfg(test)] extern crate rand;
-#[cfg(test)] extern crate chainbuf;
-
+#[cfg(test)]
+extern crate chainbuf;
+#[cfg(test)]
+extern crate rand;
+#[cfg(test)]
+extern crate test;
 
 #[cfg(test)]
 mod unit_test {
-    use chainbuf::{CHB_MIN_SIZE, Chain};
+    use chainbuf::{Chain, CHB_MIN_SIZE};
     use rand::{thread_rng, Rng};
-    use std::iter::{repeat};
+    use std::iter::repeat;
 
     #[test]
     fn test_append_bytes_changes_length() {
@@ -102,7 +103,7 @@ mod unit_test {
         let one_seq = 128usize;
         let mut buf = Vec::new();
         while t > 0 {
-            let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
+            let s: String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             buf.extend(b.iter().map(|x| x.clone()));
             chain.append_bytes(b);
@@ -135,7 +136,7 @@ mod unit_test {
         chain2.append_bytes("HelloWorld".as_bytes());
         let l2 = chain2.len();
         chain1.concat(chain2);
-        assert_eq!(chain1.len(), l1+l2);
+        assert_eq!(chain1.len(), l1 + l2);
     }
 
     #[test]
@@ -211,7 +212,7 @@ mod unit_test {
     fn test_move_from_move_on_node_edge() {
         let mut chain1 = Chain::new();
         let mut chain2 = Chain::new();
-        let s:String = thread_rng().gen_ascii_chars().take(CHB_MIN_SIZE).collect();
+        let s: String = thread_rng().gen_ascii_chars().take(CHB_MIN_SIZE).collect();
         let sb = s.as_bytes();
         chain2.append_bytes(sb);
         chain2.append_bytes(sb);
@@ -248,7 +249,7 @@ mod unit_test {
         let mut chain = Chain::new();
         chain.append_bytes("helloworld".as_bytes());
         let buf = chain.reserve(10);
-        let pat:Vec<u8> = repeat(0u8).take(10).collect();
+        let pat: Vec<u8> = repeat(0u8).take(10).collect();
         assert_eq!(&buf[..], &pat[..]);
     }
 
@@ -294,7 +295,10 @@ mod unit_test {
     #[test]
     fn test_to_utf8_returns_correct_string() {
         let mut chain = Chain::new();
-        let s:String = thread_rng().gen_ascii_chars().take(CHB_MIN_SIZE * 4).collect();
+        let s: String = thread_rng()
+            .gen_ascii_chars()
+            .take(CHB_MIN_SIZE * 4)
+            .collect();
         chain.append_bytes(s.as_bytes());
         let res = chain.to_utf8_str();
         assert!(res.is_some());
@@ -324,7 +328,7 @@ mod unit_test {
         let needle = [1u8, 2u8, 3u8];
         let one_seq = 128usize;
         for _ in 0usize..20 {
-            let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
+            let s: String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             chain.append_bytes(b);
         }
@@ -339,7 +343,10 @@ mod unit_test {
         let needle = "the quick brown fox jumps over the lazy dog";
         for i in 0usize..20 {
             let mut int_rng = thread_rng();
-            let s:String = thread_rng().gen_ascii_chars().take(int_rng.gen_range(50, 100)).collect();
+            let s: String = thread_rng()
+                .gen_ascii_chars()
+                .take(int_rng.gen_range(50, 100))
+                .collect();
             let bytes = s.as_bytes();
 
             chain.append_bytes(bytes);
@@ -363,7 +370,7 @@ mod unit_test {
         let mut t = total;
         let one_seq = 128usize;
         while t > 0 {
-            let s:String = thread_rng().gen_ascii_chars().take(one_seq).collect();
+            let s: String = thread_rng().gen_ascii_chars().take(one_seq).collect();
             let b = s.as_bytes();
             chain1.append_bytes(b);
             chain2.append_bytes(b);
@@ -396,7 +403,12 @@ mod unit_test {
     fn test_copy_bytes_from_returns_copies_bytes() {
         let mut chain = Chain::new();
         let mut offs = 0;
-        let v = vec!["helloworld", "example", "someotherstring", "differentstring"];
+        let v = vec![
+            "helloworld",
+            "example",
+            "someotherstring",
+            "differentstring",
+        ];
         for (i, el) in v.iter().enumerate() {
             chain.append_bytes(el.as_bytes());
             if i < 2 {
@@ -428,7 +440,12 @@ mod unit_test {
     fn test_pullup_from_returns_data_from_correct_offset() {
         let mut chain = Chain::new();
         let mut offs = 0;
-        let v = vec!["helloworld", "example", "someotherstring", "differentstring"];
+        let v = vec![
+            "helloworld",
+            "example",
+            "someotherstring",
+            "differentstring",
+        ];
         for (i, el) in v.iter().enumerate() {
             chain.append_bytes(el.as_bytes());
             if i < 2 {
@@ -461,18 +478,24 @@ mod unit_test {
             let mut s = String::new();
             let pl = parts.len();
             for &el in parts.iter().take(pl - 1) {
-                s.push_str(el);s.push_str(del);
+                s.push_str(el);
+                s.push_str(del);
             }
             s.push_str(parts[pl - 1]);
             s
         }
         let mut chain = Chain::new();
-        let v = vec!["helloworld", "example", "someotherstring", "differentstring"];
+        let v = vec![
+            "helloworld",
+            "example",
+            "someotherstring",
+            "differentstring",
+        ];
         for el in v.iter() {
             chain.append_bytes(el.as_bytes());
             chain.append_bytes("-".as_bytes());
         }
-        let patt = join_string("-", &v[0 .. 3]);
+        let patt = join_string("-", &v[0..3]);
         let res = chain.pullup_to("otherstring".as_bytes());
         assert!(res.is_some());
         assert_eq!(res.unwrap(), patt.as_bytes());

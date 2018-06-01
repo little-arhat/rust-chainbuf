@@ -1,28 +1,35 @@
 use std::cmp;
-use std::str;
-use std::iter::{repeat};
-use std::str::Utf8Error;
+use std::iter::repeat;
 use std::mem;
+use std::str;
+use std::str::Utf8Error;
 
 use std::rc::Rc;
 
 use std::collections::LinkedList;
 
 // Put these in other module and extend Chain
-#[cfg(feature="nix")] use nix;
-#[cfg(feature="nix")] use std::os::unix::io::RawFd;
-#[cfg(feature="nix")] use nix::fcntl as nf;
-#[cfg(feature="nix")] use nix::NixPath;
-#[cfg(feature="nix")] use nix::sys::uio::{writev, IoVec};
-#[cfg(feature="nix")] use nix::unistd::close;
-#[cfg(feature="nix")] use nix::sys::stat as stat;
-#[cfg(feature="nix")] use nix::sys::mman;
-#[cfg(feature="nix")] use std::slice;
-
+#[cfg(feature = "nix")]
+use nix;
+#[cfg(feature = "nix")]
+use nix::fcntl as nf;
+#[cfg(feature = "nix")]
+use nix::sys::mman;
+#[cfg(feature = "nix")]
+use nix::sys::stat;
+#[cfg(feature = "nix")]
+use nix::sys::uio::{writev, IoVec};
+#[cfg(feature = "nix")]
+use nix::unistd::close;
+#[cfg(feature = "nix")]
+use nix::NixPath;
+#[cfg(feature = "nix")]
+use std::os::unix::io::RawFd;
+#[cfg(feature = "nix")]
+use std::slice;
 
 /// Minimum chb size
-pub static CHB_MIN_SIZE:usize = 32usize;
-
+pub static CHB_MIN_SIZE: usize = 32usize;
 
 /// Move at most n items from the front of src deque to thes back of
 /// dst deque.
@@ -43,13 +50,13 @@ fn move_n<T>(src: &mut LinkedList<T>, dst: &mut LinkedList<T>, n: usize) {
 /// if nothing found.
 fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     unsafe {
-        let hs:&str = mem::transmute(haystack);
-        let ns:&str = mem::transmute(needle);
+        let hs: &str = mem::transmute(haystack);
+        let ns: &str = mem::transmute(needle);
         hs.find(ns)
     }
 }
 
-fn find_overlap<U:Eq, T:Iterator<Item=U> + Clone>(large: T, short: T) -> usize {
+fn find_overlap<U: Eq, T: Iterator<Item = U> + Clone>(large: T, short: T) -> usize {
     let mut haystack_it = large.clone();
     let mut needle_it = short.clone();
     let mut matched = 0usize;
@@ -83,7 +90,6 @@ fn find_overlap<U:Eq, T:Iterator<Item=U> + Clone>(large: T, short: T) -> usize {
     return matched;
 }
 
-
 /// Chained buffer of bytes.
 /// # Example
 /// ```
@@ -99,21 +105,20 @@ fn find_overlap<U:Eq, T:Iterator<Item=U> + Clone>(large: T, short: T) -> usize {
 /// are created (as in Copy-On-Write).
 pub struct Chain<'src> {
     head: LinkedList<Node<'src>>,
-    length: usize
+    length: usize,
 }
 
-struct NodeAtPosInfoMut<'a, 'src:'a> {
+struct NodeAtPosInfoMut<'a, 'src: 'a> {
     node: &'a mut Node<'src>, // link to node
-    pos: usize, // position of node in chain
-    offset: usize // offset inside node
+    pos: usize,               // position of node in chain
+    offset: usize,            // offset inside node
 }
 
-struct NodeAtPosInfo<'a, 'src:'a> {
+struct NodeAtPosInfo<'a, 'src: 'a> {
     node: &'a Node<'src>, // link to node
-    pos: usize, // position of node in chain
-    offset: usize // offset inside node
+    pos: usize,           // position of node in chain
+    offset: usize,        // offset inside node
 }
-
 
 impl<'src> Chain<'src> {
     /// Creates new, empty chainbuf.
@@ -125,9 +130,9 @@ impl<'src> Chain<'src> {
     /// let mut chain = Chain::new();
     /// ```
     pub fn new() -> Chain<'src> {
-        Chain{
+        Chain {
             head: LinkedList::new(),
-            length: 0
+            length: 0,
         }
     }
 
@@ -174,12 +179,8 @@ impl<'src> Chain<'src> {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
-            Some(nd) => {
-                (nd.room() < size) || nd.holds_readonly()
-            }
-            None => {
-                true
-            }
+            Some(nd) => (nd.room() < size) || nd.holds_readonly(),
+            None => true,
         };
         // We either not the only owner of DH or don't have enough room
         if should_create {
@@ -203,12 +204,8 @@ impl<'src> Chain<'src> {
         let size = data.len();
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.front() {
-            Some(nd) => {
-                size > nd.start || nd.holds_readonly()
-            }
-            None => {
-                true
-            }
+            Some(nd) => size > nd.start || nd.holds_readonly(),
+            None => true,
         };
         if should_create {
             let nsize = if size < CHB_MIN_SIZE { size << 1 } else { size };
@@ -220,7 +217,10 @@ impl<'src> Chain<'src> {
         }
         // See comments in `append_bytes`
         let node = self.head.front_mut().unwrap();
-        node.dh.holder_mut().unwrap().fill_from(node.start - size, data);
+        node.dh
+            .holder_mut()
+            .unwrap()
+            .fill_from(node.start - size, data);
         node.start -= size;
         self.length += size;
     }
@@ -268,7 +268,7 @@ impl<'src> Chain<'src> {
         // It seems implementing this method with `unsafe` and `pullup` is
         // far better than using RefCell everywhere.
         if size == 0 || size > self.len() {
-            return None
+            return None;
         }
         // could not fail, because self.size() > 0 => has node
         if self.head.front().unwrap().size() >= size {
@@ -278,7 +278,9 @@ impl<'src> Chain<'src> {
         let mut newn = Node::with_size(size);
 
         let mut_self: &mut Chain;
-        unsafe { mut_self = mem::transmute(self); }
+        unsafe {
+            mut_self = mem::transmute(self);
+        }
         // XXX: we need this scope to be able to move newn inside our list
         {
             let mut msize = size;
@@ -291,15 +293,14 @@ impl<'src> Chain<'src> {
                         let node_end = newn.end;
                         // we just created new data holder, so we have unique ownership
                         let dh = newn.dh.holder_mut().unwrap();
-                        dh.fill_from(node_end,
-                                     node.get_data_from_start(csize));
+                        dh.fill_from(node_end, node.get_data_from_start(csize));
                     }
                     newn.end += csize;
 
                     if node.size() > msize {
                         node.start += msize;
                         mut_self.length -= msize;
-                        break
+                        break;
                     }
                 }
                 // infailable
@@ -310,7 +311,7 @@ impl<'src> Chain<'src> {
         }
         mut_self.add_node_head(newn);
         // Now first node.size >= size, so we recurse
-        return mut_self.pullup(size)
+        return mut_self.pullup(size);
     }
 
     /// Returns slice of requested size starting from specified offset.
@@ -333,8 +334,7 @@ impl<'src> Chain<'src> {
         // We've done sanity check, so can safely unwrap this:
         let node_info = self.node_at_pos(offs).unwrap();
         if size <= node_info.node.size() - node_info.offset {
-            return Some(node_info.node.get_data_from(node_info.offset,
-                                                     size));
+            return Some(node_info.node.get_data_from(node_info.offset, size));
         }
         // If it's not the case, we need to rebuild our chain to provide
         // contigious region of memory.
@@ -344,7 +344,9 @@ impl<'src> Chain<'src> {
         let mut tmp = Chain::new();
         {
             let mut_self: &mut Chain;
-            unsafe { mut_self = mem::transmute(self); };
+            unsafe {
+                mut_self = mem::transmute(self);
+            };
             tmp.move_from(mut_self, offs);
         }
         // Run pullup to be sure, that we have dataholder that contains
@@ -352,7 +354,9 @@ impl<'src> Chain<'src> {
         let _ = self.pullup(size);
         {
             let mut_self: &mut Chain;
-            unsafe { mut_self = mem::transmute(self); };
+            unsafe {
+                mut_self = mem::transmute(self);
+            };
             tmp.move_all_from(mut_self);
             // Here we have emtpy mut_self
             mut_self.concat(tmp);
@@ -376,10 +380,10 @@ impl<'src> Chain<'src> {
     /// ```
     pub fn pullup_to(&self, needle: &[u8]) -> Option<&[u8]> {
         match self.find(needle) {
-            Some(offset) => {
-                self.pullup(offset + needle.len())
+            Some(offset) => self.pullup(offset + needle.len()),
+            None => {
+                return None;
             }
-            None => { return None; }
         }
     }
 
@@ -411,8 +415,8 @@ impl<'src> Chain<'src> {
     /// ```
     pub fn to_utf8_str(&self) -> Option<Result<&str, Utf8Error>> {
         match self.pullup_all() {
-            Some(bytes) => { Some(str::from_utf8(bytes)) }
-            None => { None }
+            Some(bytes) => Some(str::from_utf8(bytes)),
+            None => None,
         }
     }
 
@@ -558,12 +562,8 @@ impl<'src> Chain<'src> {
     pub fn reserve(&mut self, size: usize) -> &mut [u8] {
         // XXX: Damn, https://github.com/rust-lang/rust/issues/6393
         let should_create = match self.head.back() {
-            Some(nd) => {
-                (nd.room() < size) || nd.holds_readonly()
-            }
-            None => {
-                true
-            }
+            Some(nd) => (nd.room() < size) || nd.holds_readonly(),
+            None => true,
         };
         // We either not the only owner of DH or don't have enough room
         if should_create {
@@ -621,8 +621,8 @@ impl<'src> Chain<'src> {
         while msize > 0 {
             {
                 let node = match self.head.front_mut() {
-                    Some(nd) => { nd }
-                    None => { break }
+                    Some(nd) => nd,
+                    None => break,
                 };
                 if node.size() > msize {
                     node.start += msize;
@@ -664,13 +664,11 @@ impl<'src> Chain<'src> {
                     // If node_data larger than needle we gonna search
                     // from the back, looking whether some prefix of needle
                     // equal to the suffix of node_data
-                    find_overlap(node_data.iter().rev(),
-                                 work_needle.iter().rev())
+                    find_overlap(node_data.iter().rev(), work_needle.iter().rev())
                 } else {
                     // Otherwase, we'srce searching for suffix of node_data
                     // that equal to some prefix of the needle
-                    find_overlap(work_needle.iter(),
-                                 node_data.iter())
+                    find_overlap(work_needle.iter(), node_data.iter())
                 };
 
                 if overlaped > 0 {
@@ -705,7 +703,7 @@ impl<'src> Chain<'src> {
         let mut msize = buf_size;
         // Cannot fail: offs < self.len()
         let node_info = self.node_at_pos(offs).unwrap();
-        let mut node:Option<&Node> = Some(node_info.node);
+        let mut node: Option<&Node> = Some(node_info.node);
         let mut moffs = node_info.offset;
         let mut nodes_it = self.head.iter().skip(node_info.pos + 1);
         while node.is_some() && (msize > 0) {
@@ -753,9 +751,22 @@ impl<'src> Chain<'src> {
     /// }
     /// ```
     #[cfg(feature = "nix")]
-    pub fn write_to_fd(&mut self, fd: RawFd, size:Option<usize>, nodes:Option<usize>) -> nix::Result<usize> {
-        let max_size = if size.is_some() { size.unwrap() } else { self.len() };
-        let max_nodes = if nodes.is_some() { nodes.unwrap() } else { self.head.len() };
+    pub fn write_to_fd(
+        &mut self,
+        fd: RawFd,
+        size: Option<usize>,
+        nodes: Option<usize>,
+    ) -> nix::Result<usize> {
+        let max_size = if size.is_some() {
+            size.unwrap()
+        } else {
+            self.len()
+        };
+        let max_nodes = if nodes.is_some() {
+            nodes.unwrap()
+        } else {
+            self.head.len()
+        };
         // XXX: want to allocate this on stack, though
         let res;
         {
@@ -778,7 +789,7 @@ impl<'src> Chain<'src> {
         if res.is_ok() {
             self.drain(res.ok().unwrap());
         }
-        return res
+        return res;
     }
 
     /// Appends file on *path* to chainbuf by memory mapping it.
@@ -794,11 +805,11 @@ impl<'src> Chain<'src> {
     /// assert!(chain.len() > 0);
     /// ```
     #[cfg(feature = "nix")]
-    pub fn append_file<P:NixPath>(&mut self, path: &P) -> nix::Result<()> {
+    pub fn append_file<P: NixPath>(&mut self, path: &P) -> nix::Result<()> {
         let fd = try!(nf::open(path, nf::O_RDONLY, stat::Mode::empty()));
         let fdst = try!(stat::fstat(fd));
         // XXX: fstat's st_size is signed, but in practice it shouldn't be
-        let size:usize = fdst.st_size as usize;
+        let size: usize = fdst.st_size as usize;
         let dh = try!(MmappedFile::new(fd, size));
         let mut node = Node::with_data_holder(dh);
         node.end = node.room();
@@ -818,8 +829,8 @@ impl<'src> Chain<'src> {
                     return Some(NodeAtPosInfoMut {
                         node: n,
                         pos: i,
-                        offset: (nsize - (toff - pos))
-                    })
+                        offset: (nsize - (toff - pos)),
+                    });
                 }
                 toff -= nsize;
             }
@@ -832,8 +843,8 @@ impl<'src> Chain<'src> {
                     return Some(NodeAtPosInfoMut {
                         node: n,
                         pos: i,
-                        offset: pos - hoff
-                    })
+                        offset: pos - hoff,
+                    });
                 }
                 hoff += nsize;
             }
@@ -851,8 +862,8 @@ impl<'src> Chain<'src> {
                     return Some(NodeAtPosInfo {
                         node: n,
                         pos: i,
-                        offset: (nsize - (toff - pos))
-                    })
+                        offset: (nsize - (toff - pos)),
+                    });
                 }
                 toff -= nsize;
             }
@@ -865,15 +876,14 @@ impl<'src> Chain<'src> {
                     return Some(NodeAtPosInfo {
                         node: n,
                         pos: i,
-                        offset: pos - hoff
-                    })
+                        offset: pos - hoff,
+                    });
                 }
                 hoff += nsize;
             }
         }
         None
     }
-
 
     fn add_node_tail(&mut self, node: Node<'src>) {
         self.length += node.size();
@@ -928,13 +938,12 @@ impl<'src> PartialEq for Chain<'src> {
     }
 }
 
-
 /// Node of chain buffer.
 /// Owned by Chain.
 struct Node<'src> {
     dh: DataHolder<'src>,
     start: usize,
-    end: usize
+    end: usize,
 }
 
 impl<'src> Node<'src> {
@@ -949,7 +958,7 @@ impl<'src> Node<'src> {
         Node {
             dh: dh,
             start: 0,
-            end: 0
+            end: 0,
         }
     }
 
@@ -969,7 +978,7 @@ impl<'src> Node<'src> {
     }
 
     #[inline]
-    fn get_data_from_start(&self, size:usize) -> &[u8] {
+    fn get_data_from_start(&self, size: usize) -> &[u8] {
         self.dh.holder().get_data(self.start, size)
     }
 
@@ -998,7 +1007,7 @@ trait ImmutableDataHolder {
 }
 
 /// Trait representing _possible_ mutable data holders.
-trait MutableDataHolder : ImmutableDataHolder {
+trait MutableDataHolder: ImmutableDataHolder {
     /// Fills buffer from offset *dst_offs* by copying data from supplied
     /// buffer *src*.
     fn fill_from(&mut self, dst_offs: usize, src: &[u8]);
@@ -1016,7 +1025,7 @@ trait MutableDataHolder : ImmutableDataHolder {
 /// DataHolder type.
 enum DataHolder<'src> {
     Mutable(Rc<MutableDataHolder + 'src>),
-    Immutable(Rc<ImmutableDataHolder + 'src>)
+    Immutable(Rc<ImmutableDataHolder + 'src>),
 }
 
 impl<'src> DataHolder<'src> {
@@ -1030,19 +1039,15 @@ impl<'src> DataHolder<'src> {
                     None
                 }
             }
-            &mut DataHolder::Immutable(_) => { None }
+            &mut DataHolder::Immutable(_) => None,
         }
     }
 
     #[inline]
     fn holder(&self) -> &ImmutableDataHolder {
         match self {
-            &DataHolder::Mutable(ref mbdh) => {
-                (&**mbdh).as_immut()
-            }
-            &DataHolder::Immutable(ref imbdh) => {
-                & **imbdh
-            }
+            &DataHolder::Mutable(ref mbdh) => (&**mbdh).as_immut(),
+            &DataHolder::Immutable(ref imbdh) => &**imbdh,
         }
     }
 
@@ -1052,27 +1057,26 @@ impl<'src> DataHolder<'src> {
             &DataHolder::Mutable(ref rcbdh) => {
                 Rc::weak_count(rcbdh) == 0 && Rc::strong_count(rcbdh) == 1
             }
-            &DataHolder::Immutable(_) => { true }
+            &DataHolder::Immutable(_) => true,
         }
     }
-
 }
 
 impl<'src> Clone for DataHolder<'src> {
     #[inline]
     fn clone(&self) -> DataHolder<'src> {
         match self {
-            &DataHolder::Mutable(ref rcbdh) => { DataHolder::Mutable(rcbdh.clone()) }
-            &DataHolder::Immutable(ref rcbdh) => { DataHolder::Immutable(rcbdh.clone()) }
+            &DataHolder::Mutable(ref rcbdh) => DataHolder::Mutable(rcbdh.clone()),
+            &DataHolder::Immutable(ref rcbdh) => DataHolder::Immutable(rcbdh.clone()),
         }
     }
 }
 
 /// Refcounted data holder
 // TODO: implement other storages: shmem
-struct MemoryBuffer{
+struct MemoryBuffer {
     size: usize,
-    data: Vec<u8>
+    data: Vec<u8>,
 }
 
 impl MemoryBuffer {
@@ -1080,7 +1084,7 @@ impl MemoryBuffer {
     fn new<'src>(size: usize) -> DataHolder<'src> {
         DataHolder::Mutable(Rc::new(MemoryBuffer {
             size: size,
-            data: repeat(0).take(size).collect()
+            data: repeat(0).take(size).collect(),
         }))
     }
 }
@@ -1088,7 +1092,7 @@ impl MemoryBuffer {
 impl ImmutableDataHolder for MemoryBuffer {
     #[inline]
     fn get_data(&self, offset: usize, size: usize) -> &[u8] {
-        &self.data[offset .. (offset + size)]
+        &self.data[offset..(offset + size)]
     }
 
     #[inline]
@@ -1101,7 +1105,7 @@ impl MutableDataHolder for MemoryBuffer {
     #[inline]
     fn fill_from(&mut self, dst_offs: usize, src: &[u8]) {
         let len = src.len();
-        let sd = &mut self.data[dst_offs .. dst_offs + len];
+        let sd = &mut self.data[dst_offs..dst_offs + len];
         if len > sd.len() {
             panic!("copy_data_from: source larger than destination");
         }
@@ -1110,30 +1114,29 @@ impl MutableDataHolder for MemoryBuffer {
 
     #[inline]
     fn get_data_mut(&mut self, offset: usize, size: usize) -> &mut [u8] {
-        &mut self.data[offset .. offset + size]
+        &mut self.data[offset..offset + size]
     }
 
-    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder { self }
+    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder {
+        self
+    }
 }
-
 
 /// Dataholder as wrapper over some unowned slice.
 struct MemoryWrapper<'a> {
-    data: &'a [u8]
+    data: &'a [u8],
 }
 
-impl <'a>MemoryWrapper<'a> {
+impl<'a> MemoryWrapper<'a> {
     fn new<'src>(data: &'src [u8]) -> DataHolder<'src> {
-        DataHolder::Immutable(Rc::new(MemoryWrapper{
-            data: data
-        }))
+        DataHolder::Immutable(Rc::new(MemoryWrapper { data: data }))
     }
 }
 
 impl<'a> ImmutableDataHolder for MemoryWrapper<'a> {
     #[inline]
     fn get_data(&self, offset: usize, size: usize) -> &[u8] {
-        &self.data[offset .. offset + size]
+        &self.data[offset..offset + size]
     }
 
     #[inline]
@@ -1143,7 +1146,7 @@ impl<'a> ImmutableDataHolder for MemoryWrapper<'a> {
 }
 
 /// Dataholder as wrapper over mmaped file.
-#[cfg(feature="nix")]
+#[cfg(feature = "nix")]
 struct MmappedFile {
     size: usize,
     fd: RawFd,
@@ -1151,15 +1154,20 @@ struct MmappedFile {
 }
 
 impl MmappedFile {
-    fn new<'src>(fd:RawFd, size:usize) -> nix::Result<DataHolder<'src>> {
-        let addr = try!(mman::mmap(0 as *mut nix::c_void,
-                                   size, mman::PROT_READ,
-                                   mman::MAP_SHARED, fd, 0));
+    fn new<'src>(fd: RawFd, size: usize) -> nix::Result<DataHolder<'src>> {
+        let addr = try!(mman::mmap(
+            0 as *mut nix::c_void,
+            size,
+            mman::PROT_READ,
+            mman::MAP_SHARED,
+            fd,
+            0
+        ));
 
         let dh = DataHolder::Immutable(Rc::new(MmappedFile {
             size: size,
             fd: fd,
-            addr: addr as *const u8
+            addr: addr as *const u8,
         }));
         Ok(dh)
     }
@@ -1167,8 +1175,7 @@ impl MmappedFile {
 
 impl Drop for MmappedFile {
     fn drop(&mut self) {
-        let munmap_res = mman::munmap(self.addr as *mut nix::c_void,
-                                      self.size);
+        let munmap_res = mman::munmap(self.addr as *mut nix::c_void, self.size);
         let close_res = close(self.fd);
         assert!(munmap_res.is_ok() && close_res.is_ok());
     }
@@ -1177,10 +1184,7 @@ impl Drop for MmappedFile {
 impl ImmutableDataHolder for MmappedFile {
     #[inline]
     fn get_data(&self, offset: usize, size: usize) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(self.addr.offset(offset as isize),
-                                  size)
-        }
+        unsafe { slice::from_raw_parts(self.addr.offset(offset as isize), size) }
     }
 
     #[inline]
