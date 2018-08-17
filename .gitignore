@@ -2,4 +2,5 @@ Cargo.lock
 chb
 target
 src/orig_chb.c
+src/new_orig_chb.c
 src/orig_chb.h
