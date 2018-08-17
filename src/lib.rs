@@ -1,7 +1,6 @@
 #![crate_name = "chainbuf"]
 #![deny(missing_docs)]
 #![deny(warnings)]
-#![feature(collections)]
 
 //! The main crate for the Chainbuf library.
 //!
