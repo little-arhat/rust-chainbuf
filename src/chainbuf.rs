@@ -1019,18 +1019,18 @@ trait MutableDataHolder: ImmutableDataHolder {
     /// Upcast &MutableDataHolder to &ImmutableDataHolder
     // XXX: rust doesn't support upcasting to supertrait yet
     // https://github.com/rust-lang/rust/issues/5665
-    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder;
+    fn as_immut<'a>(&'a self) -> &'a dyn ImmutableDataHolder;
 }
 
 /// DataHolder type.
 enum DataHolder<'src> {
-    Mutable(Rc<MutableDataHolder + 'src>),
-    Immutable(Rc<ImmutableDataHolder + 'src>),
+    Mutable(Rc<dyn MutableDataHolder + 'src>),
+    Immutable(Rc<dyn ImmutableDataHolder + 'src>),
 }
 
 impl<'src> DataHolder<'src> {
     #[inline]
-    fn holder_mut(&mut self) -> Option<&mut MutableDataHolder> {
+    fn holder_mut(&mut self) -> Option<&mut dyn MutableDataHolder> {
         match self {
             &mut DataHolder::Mutable(ref mut rcbdh) => {
                 if let Some(bdh) = Rc::get_mut(rcbdh) {
@@ -1044,7 +1044,7 @@ impl<'src> DataHolder<'src> {
     }
 
     #[inline]
-    fn holder(&self) -> &ImmutableDataHolder {
+    fn holder(&self) -> &dyn ImmutableDataHolder {
         match self {
             &DataHolder::Mutable(ref mbdh) => (&**mbdh).as_immut(),
             &DataHolder::Immutable(ref imbdh) => &**imbdh,
@@ -1117,7 +1117,7 @@ impl MutableDataHolder for MemoryBuffer {
         &mut self.data[offset..offset + size]
     }
 
-    fn as_immut<'a>(&'a self) -> &'a ImmutableDataHolder {
+    fn as_immut<'a>(&'a self) -> &'a dyn ImmutableDataHolder {
         self
     }
 }
