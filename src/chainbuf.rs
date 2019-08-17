@@ -806,7 +806,7 @@ impl<'src> Chain<'src> {
     /// ```
     #[cfg(feature = "nix")]
     pub fn append_file<P: NixPath>(&mut self, path: &P) -> nix::Result<()> {
-        let fd = nf::open(path, nf::O_RDONLY, stat::Mode::empty())?;
+        let fd = nf::open(path, nf::OFlag::O_RDONLY, stat::Mode::empty())?;
         let fdst = stat::fstat(fd)?;
         // XXX: fstat's st_size is signed, but in practice it shouldn't be
         let size: usize = fdst.st_size as usize;
@@ -1155,14 +1155,14 @@ struct MmappedFile {
 
 impl MmappedFile {
     fn new<'src>(fd: RawFd, size: usize) -> nix::Result<DataHolder<'src>> {
-        let addr = mman::mmap(
-            0 as *mut nix::c_void,
+        let addr = unsafe { mman::mmap(
+            0 as *mut std::ffi::c_void,
             size,
-            mman::PROT_READ,
-            mman::MAP_SHARED,
+            mman::ProtFlags::PROT_READ,
+            mman::MapFlags::MAP_SHARED,
             fd,
             0
-        )?;
+        )? };
 
         let dh = DataHolder::Immutable(Rc::new(MmappedFile {
             size: size,
@@ -1175,7 +1175,7 @@ impl MmappedFile {
 
 impl Drop for MmappedFile {
     fn drop(&mut self) {
-        let munmap_res = mman::munmap(self.addr as *mut nix::c_void, self.size);
+        let munmap_res = unsafe { mman::munmap(self.addr as *mut std::ffi::c_void, self.size) };
         let close_res = close(self.fd);
         assert!(munmap_res.is_ok() && close_res.is_ok());
     }
