@@ -806,11 +806,11 @@ impl<'src> Chain<'src> {
     /// ```
     #[cfg(feature = "nix")]
     pub fn append_file<P: NixPath>(&mut self, path: &P) -> nix::Result<()> {
-        let fd = try!(nf::open(path, nf::O_RDONLY, stat::Mode::empty()));
-        let fdst = try!(stat::fstat(fd));
+        let fd = nf::open(path, nf::O_RDONLY, stat::Mode::empty())?;
+        let fdst = stat::fstat(fd)?;
         // XXX: fstat's st_size is signed, but in practice it shouldn't be
         let size: usize = fdst.st_size as usize;
-        let dh = try!(MmappedFile::new(fd, size));
+        let dh = MmappedFile::new(fd, size)?;
         let mut node = Node::with_data_holder(dh);
         node.end = node.room();
         self.add_node_tail(node);
@@ -1155,14 +1155,14 @@ struct MmappedFile {
 
 impl MmappedFile {
     fn new<'src>(fd: RawFd, size: usize) -> nix::Result<DataHolder<'src>> {
-        let addr = try!(mman::mmap(
+        let addr = mman::mmap(
             0 as *mut nix::c_void,
             size,
             mman::PROT_READ,
             mman::MAP_SHARED,
             fd,
             0
-        ));
+        )?;
 
         let dh = DataHolder::Immutable(Rc::new(MmappedFile {
             size: size,

@@ -7,6 +7,7 @@ license = "MIT"
 description = "Fast chained buffers"
 repository = "https://github.com/little-arhat/rust-chainbuf"
 keywords = ["io", "data-structure", "zero-copy"]
+edition = "2018"
 
 [lib]
 name = "chainbuf"
@@ -26,7 +27,6 @@ libc = "0.1.10"
 [dependencies.nix]
 version = "0.7.0"
 optional = true
-
 
 default-features = true
 

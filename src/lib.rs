@@ -7,10 +7,6 @@
 //! ... docs are to be written
 //!
 
-// Exetrnal dependencies
-#[cfg(feature = "nix")]
-extern crate nix;
-
 pub use chainbuf::Chain;
 
 // XXX: for tests only, to remove, probably.
