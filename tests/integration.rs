@@ -16,7 +16,7 @@ extern crate nix;
 mod integration_test {
     #[cfg(feature = "nix")]
     mod test_writev {
-        use chainbuf::Chain;
+        use crate::chainbuf::Chain;
         use nix::unistd::{close, pipe, read};
         use rand::{thread_rng, Rng};
         use std::iter::repeat;
@@ -64,7 +64,7 @@ mod integration_test {
     #[cfg(feature = "nix")]
     #[allow(deprecated)]
     mod test_append_file {
-        use chainbuf::Chain;
+        use crate::chainbuf::Chain;
         use nix::fcntl as nf;
         use nix::sys::stat;
         use nix::unistd::{close, write};
@@ -80,8 +80,11 @@ mod integration_test {
             let tmpd = tmpd_res.ok().unwrap();
             let mut p = tmpd.path().to_path_buf();
             p.push("mmaped_file.map");
-            let user_file = stat::S_IRUSR | stat::S_IWUSR | stat::S_IRGRP | stat::S_IROTH;
-            let open_res = nf::open(&p, nf::O_CREAT | nf::O_RDWR | nf::O_TRUNC, user_file);
+            let user_file = stat::Mode::S_IRUSR | stat::Mode::S_IWUSR
+                | stat::Mode::S_IRGRP | stat::Mode::S_IROTH;
+            let open_res = nf::open(&p, nf::OFlag::O_CREAT
+                                    | nf::OFlag::O_RDWR
+                                    | nf::OFlag::O_TRUNC, user_file);
             assert!(open_res.is_ok());
             let fd = open_res.ok().unwrap();
             let write_res = write(fd, &v[..]);

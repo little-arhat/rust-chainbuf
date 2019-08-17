@@ -7,10 +7,10 @@
 //! ... docs are to be written
 //!
 
-pub use chainbuf::Chain;
+pub use crate::chainbuf::Chain;
 
 // XXX: for tests only, to remove, probably.
-pub use chainbuf::CHB_MIN_SIZE;
+pub use crate::chainbuf::CHB_MIN_SIZE;
 
 // internal
 mod chainbuf;
