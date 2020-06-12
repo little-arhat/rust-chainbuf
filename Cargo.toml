@@ -8,6 +8,7 @@ description = "Fast chained buffers"
 repository = "https://github.com/little-arhat/rust-chainbuf"
 keywords = ["io", "data-structure", "zero-copy"]
 edition = "2018"
+readme = "Readme.md"
 
 [lib]
 name = "chainbuf"
