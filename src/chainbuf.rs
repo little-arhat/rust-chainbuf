@@ -731,8 +731,7 @@ impl<'src> Chain<'src> {
     /// iovec struct in array of iovecs.
     /// # Example
     /// ```
-    /// extern crate nix;
-    /// extern crate chainbuf;
+    /// use nix;
     /// use chainbuf::Chain;
     /// use nix::unistd::{pipe, close, read};
     /// use std::iter::{repeat};
@@ -1155,14 +1154,16 @@ struct MmappedFile {
 
 impl MmappedFile {
     fn new<'src>(fd: RawFd, size: usize) -> nix::Result<DataHolder<'src>> {
-        let addr = unsafe { mman::mmap(
-            0 as *mut std::ffi::c_void,
-            size,
-            mman::ProtFlags::PROT_READ,
-            mman::MapFlags::MAP_SHARED,
-            fd,
-            0
-        )? };
+        let addr = unsafe {
+            mman::mmap(
+                0 as *mut std::ffi::c_void,
+                size,
+                mman::ProtFlags::PROT_READ,
+                mman::MapFlags::MAP_SHARED,
+                fd,
+                0,
+            )?
+        };
 
         let dh = DataHolder::Immutable(Rc::new(MmappedFile {
             size: size,

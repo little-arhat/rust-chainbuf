@@ -1,12 +1,3 @@
-#![feature(test)]
-
-#[cfg(test)]
-extern crate chainbuf;
-#[cfg(test)]
-extern crate rand;
-#[cfg(test)]
-extern crate test;
-
 #[cfg(test)]
 mod unit_test {
     use chainbuf::{Chain, CHB_MIN_SIZE};
