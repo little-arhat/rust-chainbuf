@@ -5,5 +5,7 @@ sudo: false
 language: rust
 rust:
   - nightly
+  - beta
+  - stable
 after_script:
   - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
